@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template, redirect, url_for
-from flask_mysql import MySQL
+from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
 
 app = Flask(__name__)
