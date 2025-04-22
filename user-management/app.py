@@ -7,14 +7,18 @@ app = Flask(__name__)
 # Bcrypt için ayar
 bcrypt = Bcrypt(app)
 
-
+# MySQL bağlantısı için ayar
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = 'your_mysql_password'
+app.config['MYSQL_DB'] = 'your_database_name'
 
 mysql = MySQL(app)
 
 # Anasayfa
 @app.route('/')
 def index():
-    return 'Welcome to the User Management App'
+    return render_template('index.html')
 
 # Kayıt Sayfası
 @app.route('/signup', methods=['GET', 'POST'])
@@ -23,7 +27,7 @@ def signup():
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
-        
+
         # Şifreyi hash'le
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
@@ -43,13 +47,13 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        
+
         # Kullanıcıyı veritabanında ara
         cursor = mysql.connection.cursor()
         cursor.execute("SELECT * FROM users WHERE username = %s", [username])
         user = cursor.fetchone()
         cursor.close()
-        
+
         if user and bcrypt.check_password_hash(user['password'], password):
             return 'Login successful!'
         else:
