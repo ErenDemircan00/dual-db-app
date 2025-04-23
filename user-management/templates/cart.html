@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sepetim</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .cart-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .cart-item-info {
+            flex-grow: 1;
+        }
+        .cart-item-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .cart-item-price {
+            color: #4CAF50;
+        }
+        .cart-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .quantity-control {
+            display: flex;
+            align-items: center;
+        }
+        .quantity-input {
+            width: 40px;
+            text-align: center;
+            margin: 0 5px;
+        }
+        .update-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .remove-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .cart-total {
+            text-align: right;
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .empty-cart {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .checkout-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            width: 100%;
+        }
+        .nav-button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Sepetim</h1>
+        <a href="{{ url_for('list_products') }}" class="nav-button">Ürünlere Dön</a>
+    </div>
+
+    <div class="cart-container">
+        {% if cart_items %}
+            {% for item in cart_items %}
+            <div class="cart-item">
+                <div class="cart-item-info">
+                    <div class="cart-item-title">{{ item.name }}</div>
+                    <div class="cart-item-price">{{ item.price }} TL</div>
+                </div>
+                <div class="cart-item-controls">
+                    <form action="{{ url_for('update_cart', item_id=item._id) }}" method="post" class="quantity-control">
+                        <input type="number" name="quantity" value="{{ item.quantity }}" min="1" class="quantity-input">
+                        <button type="submit" class="update-btn">Güncelle</button>
+                    </form>
+                    <form action="{{ url_for('remove_from_cart', item_id=item._id) }}" method="post">
+                        <button type="submit" class="remove-btn">Sil</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <div class="cart-total">
+                Toplam: {{ total }} TL
+            </div>
+            
+            <button class="checkout-btn">Ödemeye Geç</button>
+        {% else %}
+            <div class="empty-cart">
+                <h2>Sepetiniz boş</h2>
+                <p>Alışverişe başlamak için <a href="{{ url_for('list_products') }}">ürünlere göz atın</a>.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

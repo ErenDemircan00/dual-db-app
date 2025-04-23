@@ -1,7 +1,10 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify
+from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 from dotenv import load_dotenv
+from functools import wraps
 import os
 import jwt
 import datetime
@@ -9,7 +12,7 @@ import datetime
 # .env dosyasını yükle
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 
 # Bcrypt ve JWT ayarları
 bcrypt = Bcrypt(app)
@@ -22,6 +25,44 @@ app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
 app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
 
 mysql = MySQL(app)
+
+# MongoDB bağlantısı
+client = MongoClient(os.getenv('MONGO_URI'))
+db = client['shop']  # veya os.getenv('MONGO_DB_NAME')
+products_collection = db['products']
+cart_collection = db['cart']  # Sepet için yeni koleksiyon
+
+# Token doğrulama dekoratörü
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        
+        # Cookie'den veya Authorization header'dan token alınması
+        if 'token' in request.cookies:
+            token = request.cookies.get('token')
+        elif 'Authorization' in request.headers:
+            auth_header = request.headers.get('Authorization')
+            if auth_header.startswith('Bearer '):
+                token = auth_header[7:]  # 'Bearer ' kısmını kaldır
+        
+        if not token:
+            if request.headers.get('Content-Type') == 'application/json':
+                return jsonify({'message': 'Token eksik!'}), 403
+            return redirect(url_for('login'))
+        
+        try:
+            # Token'ı doğrula
+            data = jwt.decode(token, app.secret_key, algorithms=['HS256'])
+            current_user = {'id': data['user_id'], 'username': data['username']}
+        except:
+            if request.headers.get('Content-Type') == 'application/json':
+                return jsonify({'message': 'Geçersiz token!'}), 403
+            return redirect(url_for('login'))
+            
+        return f(current_user, *args, **kwargs)
+    
+    return decorated
 
 # Anasayfa
 @app.route('/')
@@ -36,11 +77,12 @@ def signup():
         password = request.form['password']
         email = request.form['email']
 
-        # Şifre hash’leniyor
+        # Şifre hash'leniyor
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
         cursor = mysql.connection.cursor()
-        cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", (username, hashed_password, email))
+        cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", 
+                     (username, hashed_password, email))
         mysql.connection.commit()
         cursor.close()
 
@@ -55,78 +97,183 @@ def login():
         username = request.form['username'].strip()
         password = request.form['password'].strip()
         
+        # API isteği mi, yoksa form isteği mi kontrol et
+        is_api = request.headers.get('Content-Type') == 'application/json'
+        
+        if is_api:
+            data = request.get_json()
+            username = data.get('username', '').strip()
+            password = data.get('password', '').strip()
+
         cursor = mysql.connection.cursor()
         cursor.execute("SELECT id, username, password FROM users WHERE username = %s", [username])
         user = cursor.fetchone()
         cursor.close()
-        
-        # Debug için
-        print(f"Kullanıcı: {user}")
-        
+
         if user:
-            # User[0] = id, User[1] = username, User[2] = password olduğunu doğrulayalım
             user_id, user_name, hashed_password = user
-            
-            print(f"Şifre kontrolü: {password}, Hash: {hashed_password}")
-            
-            try:
-                # Şifreyi doğrulamayı dene
-                if bcrypt.check_password_hash(hashed_password, password):
-                    # JWT Token oluştur
-                    token = jwt.encode({
-                        'user_id': user_id,
-                        'username': user_name,
-                        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
-                    }, app.secret_key, algorithm='HS256')
-                    
+            if bcrypt.check_password_hash(hashed_password, password):
+                # JWT Token oluştur
+                token = jwt.encode({
+                    'user_id': user_id,
+                    'username': user_name,
+                    'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+                }, app.secret_key, algorithm='HS256')
+                
+                if is_api:
                     return jsonify({'message': 'Giriş başarılı', 'token': token})
                 else:
+                    # Web arayüzü için cookie'ye token ekle ve yönlendir
+                    response = make_response(redirect(url_for('list_products')))
+                    response.set_cookie('token', token, httponly=True, max_age=7200)  # 2 saat
+                    return response
+            else:
+                if is_api:
                     return jsonify({'message': 'Geçersiz şifre'}), 401
-            except ValueError as e:
-                # Hata detayını kaydet
-                print(f"Şifre doğrulama hatası: {e}, Hash: {hashed_password}")
-                return jsonify({'message': f'Şifre doğrulama hatası: {e}'}), 500
-            except Exception as e:
-                print(f"Beklenmeyen hata: {e}")
-                return jsonify({'message': 'Bir hata oluştu'}), 500
+                else:
+                    return render_template('login.html', error='Geçersiz şifre')
         
-        return jsonify({'message': 'Kullanıcı bulunamadı'}), 401
+        if is_api:
+            return jsonify({'message': 'Kullanıcı bulunamadı'}), 401
+        else:
+            return render_template('login.html', error='Kullanıcı bulunamadı')
     
     return render_template('login.html')
 
-# Ürün Ekleme Route'u
-@app.route('/add-product', methods=['POST'])
-def add_product():
-    token = request.headers.get('Authorization')
-    if not token:
-        return jsonify({'message': 'Token is missing!'}), 403
+# Ürün Ekleme Sayfası
+@app.route('/add-product', methods=['GET', 'POST'])
+@token_required
+def add_product(current_user):
+    if request.method == 'POST':
+        name = request.form['name']
+        price = float(request.form['price'])
+        description = request.form['description']
+        
+        product = {
+            "name": name, 
+            "price": price, 
+            "description": description,
+            "user_id": current_user['id'],
+            "created_by": current_user['username'],
+            "created_at": datetime.datetime.utcnow()
+        }
+        
+        products_collection.insert_one(product)
+        return redirect(url_for('list_products'))
+    
+    return render_template('add_product.html')
 
-    try:
-        # Token doğrulama
-        decoded_token = jwt.decode(token, app.secret_key, algorithms=['HS256'])
-        user_id = decoded_token['user_id']
-    except jwt.ExpiredSignatureError:
-        return jsonify({'message': 'Token is expired!'}), 401
-    except jwt.InvalidTokenError:
-        return jsonify({'message': 'Invalid token!'}), 403
+# Ürün Listesi
+@app.route('/products', methods=['GET'])
+@token_required
+def list_products(current_user):
+    products = list(products_collection.find())
+    return render_template('product_list.html', products=products)
 
-    # Ürün verilerini al
-    product_name = request.json.get('product_name')
-    product_price = request.json.get('product_price')
-    product_description = request.json.get('product_description')
+# API Endpoint - Ürün Ekleme
+@app.route('/api/products', methods=['POST'])
+@token_required
+def api_add_product(current_user):
+    data = request.get_json()
+    
+    if not data or 'name' not in data or 'price' not in data or 'description' not in data:
+        return jsonify({'message': 'Ürün detayları eksik!'}), 400
+    
+    product = {
+        "name": data['name'], 
+        "price": float(data['price']), 
+        "description": data['description'],
+        "user_id": current_user['id'],
+        "created_by": current_user['username'],
+        "created_at": datetime.datetime.utcnow()
+    }
+    
+    result = products_collection.insert_one(product)
+    
+    return jsonify({
+        'message': 'Ürün başarıyla eklendi',
+        'product_id': str(result.inserted_id)
+    }), 201
 
-    if not product_name or not product_price or not product_description:
-        return jsonify({'message': 'Missing product details!'}), 400
+# Sepete ürün ekleme
+@app.route('/add-to-cart/<product_id>', methods=['POST'])
+@token_required
+def add_to_cart(current_user, product_id):
+    # Ürünü veritabanından bul
+    product = products_collection.find_one({'_id': ObjectId(product_id)})
+    
+    if product:
+        # Ürün sepette var mı kontrol et
+        cart_item = cart_collection.find_one({
+            'user_id': current_user['id'],
+            'product_id': str(product['_id'])
+        })
+        
+        if cart_item:
+            # Ürün zaten sepette, miktarını artır
+            cart_collection.update_one(
+                {'_id': cart_item['_id']},
+                {'$inc': {'quantity': 1}}
+            )
+        else:
+            # Ürünü sepete ekle
+            cart_item = {
+                'user_id': current_user['id'],
+                'product_id': str(product['_id']),
+                'name': product['name'],
+                'price': product['price'],
+                'quantity': 1,
+                'added_at': datetime.datetime.utcnow()
+            }
+            cart_collection.insert_one(cart_item)
+        
+        return redirect(url_for('view_cart'))
+    
+    return redirect(url_for('list_products'))
 
-    cursor = mysql.connection.cursor()
-    cursor.execute(
-        "INSERT INTO products (name, price, description, user_id) VALUES (%s, %s, %s, %s)",
-        (product_name, product_price, product_description, user_id)
-    )
-    mysql.connection.commit()
-    cursor.close()
+# Sepeti görüntüle
+@app.route('/cart', methods=['GET'])
+@token_required
+def view_cart(current_user):
+    # Kullanıcının sepetindeki ürünleri bul
+    cart_items = list(cart_collection.find({'user_id': current_user['id']}))
+    
+    # Toplam tutarı hesapla
+    total = sum(item['price'] * item['quantity'] for item in cart_items)
+    
+    return render_template('cart.html', cart_items=cart_items, total=total)
 
-    return jsonify({'message': 'Product added successfully'}), 201
+# Sepetten ürün kaldırma
+@app.route('/remove-from-cart/<item_id>', methods=['POST'])
+@token_required
+def remove_from_cart(current_user, item_id):
+    cart_collection.delete_one({'_id': ObjectId(item_id), 'user_id': current_user['id']})
+    
+    return redirect(url_for('view_cart'))
+
+# Sepetteki ürün miktarını güncelleme
+@app.route('/update-cart/<item_id>', methods=['POST'])
+@token_required
+def update_cart(current_user, item_id):
+    quantity = int(request.form.get('quantity', 1))
+    
+    if quantity > 0:
+        cart_collection.update_one(
+            {'_id': ObjectId(item_id), 'user_id': current_user['id']},
+            {'$set': {'quantity': quantity}}
+        )
+    else:
+        # Miktar 0 veya negatifse ürünü sepetten kaldır
+        cart_collection.delete_one({'_id': ObjectId(item_id), 'user_id': current_user['id']})
+    
+    return redirect(url_for('view_cart'))
+
+# Çıkış Yap
+@app.route('/logout')
+def logout():
+    response = make_response(redirect(url_for('login')))
+    response.set_cookie('token', '', expires=0)  # Token cookie'sini sil
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -5,17 +5,23 @@
 </head>
 <body>
     <h1>Yeni Ürün Ekle</h1>
-    <form method="POST">
-        <label>Ürün Adı:</label><br>
-        <input type="text" name="name" required><br><br>
-
-        <label>Fiyat:</label><br>
-        <input type="number" name="price" step="0.01" required><br><br>
-
-        <label>Açıklama:</label><br>
-        <textarea name="description" required></textarea><br><br>
-
-        <button type="submit">Kaydet</button>
+    <form method="POST" action="{{ url_for('add_product') }}">
+        <div>
+            <label for="name">Ürün Adı:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div>
+            <label for="price">Fiyat:</label>
+            <input type="number" id="price" name="price" step="0.01" required>
+        </div>
+        <div>
+            <label for="description">Açıklama:</label>
+            <textarea id="description" name="description" required></textarea>
+        </div>
+        <button type="submit">Ürün Ekle</button>
     </form>
+    <div>
+        <a href="{{ url_for('list_products') }}">Ürün Listesine Dön</a>
+    </div>
 </body>
 </html>

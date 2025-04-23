@@ -1,20 +1,95 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ürün Listesi</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .products-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .product-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .product-price {
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .product-description {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .add-to-cart {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .add-to-cart:hover {
+            background-color: #45a049;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .nav-button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+        .cart-button {
+            background-color: #FF9800;
+        }
+    </style>
 </head>
 <body>
-    <h1>Ürünler</h1>
-    <ul>
+    <div class="header">
+        <h1>Ürün Listesi</h1>
+        <div class="nav-buttons">
+            <a href="{{ url_for('add_product') }}" class="nav-button">Yeni Ürün Ekle</a>
+            <a href="{{ url_for('view_cart') }}" class="nav-button cart-button">Sepetim</a>
+        </div>
+    </div>
+
+    <div class="products-container">
         {% for product in products %}
-            <li>
-                <strong>{{ product.name }}</strong> - {{ product.price }} TL<br>
-                {{ product.description }}
-            </li>
-        {% else %}
-            <li>Henüz ürün yok.</li>
+        <div class="product-card">
+            <div class="product-title">{{ product.name }}</div>
+            <div class="product-price">{{ product.price }} TL</div>
+            <div class="product-description">{{ product.description }}</div>
+            <form action="{{ url_for('add_to_cart', product_id=product._id) }}" method="post">
+                <button type="submit" class="add-to-cart">Sepete Ekle</button>
+            </form>
+        </div>
         {% endfor %}
-    </ul>
-    <a href="/add-product">Yeni Ürün Ekle</a>
+    </div>
 </body>
 </html>
