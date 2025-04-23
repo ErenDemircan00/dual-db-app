@@ -29,5 +29,10 @@
             {% endfor %}
         {% endif %}
     </div>
+    {% if session.user_type == "supplier" %}
+    <div id="add-product">
+        <button type="submit">Ürün Ekle</button>
+    </div>
+    {% endif %}
 </body>
 </html>
