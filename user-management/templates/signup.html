@@ -1,25 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>Kayıt Ol</title>
 </head>
 <body>
-
-    <h1>Sign Up</h1>
-
-    <div class="form-container">
-        <form action="{{ url_for('signup') }}" method="POST">
-            <input type="text" name="username" placeholder="Username" required><br>
-            <input type="email" name="email" placeholder="Email" required><br>
-            <input type="password" name="password" placeholder="Password" required><br>
-            <button type="submit">Kayıt Ol</button>
-        </form>
-    </div>
-
-    <p class="links">Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
-
+    <h1>Kayıt Ol</h1>
+    <form method="POST" action="{{ url_for('signup') }}">
+        <div class="form-group">
+            <label for="username">Kullanıcı Adı</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Şifre</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <div class="form-group">
+            <label for="email">E-posta</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="user_type">Kullanıcı Tipi</label>
+            <select id="user_type" name="user_type" required>
+                <option value="customer">Müşteri</option>
+                <option value="supplier">Tedarikçi</option>
+            </select>
+        </div>
+        <button type="submit">Kayıt Ol</button>
+    </form>
+    <p>Zaten hesabınız var mı? <a href="{{ url_for('login') }}">Giriş Yap</a></p>
 </body>
 </html>
