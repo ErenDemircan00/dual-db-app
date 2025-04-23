@@ -1,13 +1,19 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template,jsonify, redirect, url_for, session
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
+from flask_pymongo import PyMongo
+import pymysql
 import os
 
-# .env dosyasını yükle
+
 load_dotenv()
 
 app = Flask(__name__)
+
+app.config["MONGO_URI"] = os.getenv("MONGO_URI")
+mongo = PyMongo(app)
+
 
 # Bcrypt için ayar
 bcrypt = Bcrypt(app)
@@ -17,9 +23,11 @@ app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')  # .env dosyasındaki MYSQL_H
 app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')  # .env dosyasındaki MYSQL_USER kullanılır
 app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')  # .env dosyasındaki MYSQL_PASSWORD kullanılır
 app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')  # .env dosyasındaki MYSQL_DB kullanılır
-app.secret_key = os.getenv('SECRET_KEY')  # Session için secret key
+app.secret_key = os.getenv('SECRET_KEY') or "12345"  # Session için secret key
 
 mysql = MySQL(app)
+
+all_product = mongo.db.products
 
 # Anasayfa
 @app.route('/')
@@ -39,11 +47,12 @@ def signup():
 
         # Veritabanına ekle
         cursor = mysql.connection.cursor()
-        cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", (username, plain_password, email))
+        cursor.execute("USE users")
+        cursor.execute("INSERT INTO user (username, password, email) VALUES (%s, %s, %s)", (username, plain_password, email))
         mysql.connection.commit()
         cursor.close()
 
-        return redirect(url_for('login'))
+        return redirect(url_for('index'))
 
     return render_template('signup.html')
 
@@ -56,20 +65,35 @@ def login():
         
         # Kullanıcıyı veritabanında ara
         cursor = mysql.connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = %s", [username])
+        cursor.execute("USE users")
+        cursor.execute("SELECT * FROM user WHERE username = %s", [username])
         user = cursor.fetchone()
         cursor.close()
 
         if user:
             # Kullanıcı ve şifreyi kontrol et
             if user[2] == password:  # Şifreyi olduğu gibi karşılaştırıyoruz
-                return 'Login successful!'
+                session["user_logged_in"] = True
+                session["username"] = username
+                return redirect(url_for('products'))
+                
             else:
+                session["user_logged_in"] = False
                 return 'Invalid credentials'
         else:
+            session["user_logged_in"] = False
             return 'Invalid credentials'
 
     return render_template('login.html')
+
+@app.route('/products',methods=['GET'])
+def products():
+    try:
+        product_list = list(all_product.find({}, {'_id': 0}))  # _id hariç tüm alanları döndür
+        return render_template('products.html', products=product_list)
+    except Exception as e:
+        return jsonify({"error": f"Ürünler listelenirken hata: {str(e)}"}), 500
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
