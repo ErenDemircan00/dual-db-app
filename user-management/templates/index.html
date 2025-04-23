@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,12 +11,48 @@
 
     {% if user_logged_in %}
         <h2>Welcome, {{ username }}!</h2>
-        <form action="/delete_user" method="POST">
-            <button type="submit" name="delete_user">Delete Your Account</button>
+        <!-- Ürün ekleme formu -->
+        <h3>Add a Product</h3>
+        <form id="productForm">
+            <input type="text" id="productName" placeholder="Product Name" required><br>
+            <input type="number" id="productPrice" placeholder="Price" required><br>
+            <textarea id="productDescription" placeholder="Description" required></textarea><br>
+            <button type="submit">Add Product</button>
         </form>
     {% else %}
         <p>You are not logged in.</p>
         <a href="/login">Login</a> | <a href="/signup">Sign Up</a>
     {% endif %}
+
+    <script>
+        const token = localStorage.getItem('token'); // Token'ı al
+
+        if (token) {
+            document.getElementById('productForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const name = document.getElementById('productName').value;
+                const price = parseFloat(document.getElementById('productPrice').value);
+                const description = document.getElementById('productDescription').value;
+
+                fetch('/add-product', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token  // Token'ı header'a ekliyoruz
+                    },
+                    body: JSON.stringify({ product_name: name, product_price: price, product_description: description })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('Product added!');
+                })
+                .catch(error => {
+                    console.error('Error adding product:', error);
+                    alert('Error adding product');
+                });
+            });
+        }
+    </script>
 </body>
 </html>

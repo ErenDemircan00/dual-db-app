@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ürün Listesi</title>
+</head>
+<body>
+    <h1>Ürünler</h1>
+    <ul>
+        {% for product in products %}
+            <li>
+                <strong>{{ product.name }}</strong> - {{ product.price }} TL<br>
+                {{ product.description }}
+            </li>
+        {% else %}
+            <li>Henüz ürün yok.</li>
+        {% endfor %}
+    </ul>
+    <a href="/add-product">Yeni Ürün Ekle</a>
+</body>
+</html>

@@ -94,5 +94,39 @@ def login():
     
     return render_template('login.html')
 
+# Ürün Ekleme Route'u
+@app.route('/add-product', methods=['POST'])
+def add_product():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'message': 'Token is missing!'}), 403
+
+    try:
+        # Token doğrulama
+        decoded_token = jwt.decode(token, app.secret_key, algorithms=['HS256'])
+        user_id = decoded_token['user_id']
+    except jwt.ExpiredSignatureError:
+        return jsonify({'message': 'Token is expired!'}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({'message': 'Invalid token!'}), 403
+
+    # Ürün verilerini al
+    product_name = request.json.get('product_name')
+    product_price = request.json.get('product_price')
+    product_description = request.json.get('product_description')
+
+    if not product_name or not product_price or not product_description:
+        return jsonify({'message': 'Missing product details!'}), 400
+
+    cursor = mysql.connection.cursor()
+    cursor.execute(
+        "INSERT INTO products (name, price, description, user_id) VALUES (%s, %s, %s, %s)",
+        (product_name, product_price, product_description, user_id)
+    )
+    mysql.connection.commit()
+    cursor.close()
+
+    return jsonify({'message': 'Product added successfully'}), 201
+
 if __name__ == '__main__':
     app.run(debug=True)
