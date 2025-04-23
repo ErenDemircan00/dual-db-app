@@ -1,23 +1,25 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, jsonify
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
 from dotenv import load_dotenv
 import os
+import jwt
+import datetime
 
 # .env dosyasını yükle
 load_dotenv()
 
 app = Flask(__name__)
 
-# Bcrypt için ayar
+# Bcrypt ve JWT ayarları
 bcrypt = Bcrypt(app)
+app.secret_key = os.getenv('SECRET_KEY')  # Session ve JWT için
 
 # MySQL bağlantısı için ayar
-app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')  # .env dosyasındaki MYSQL_HOST kullanılır
-app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')  # .env dosyasındaki MYSQL_USER kullanılır
-app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')  # .env dosyasındaki MYSQL_PASSWORD kullanılır
-app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')  # .env dosyasındaki MYSQL_DB kullanılır
-app.secret_key = os.getenv('SECRET_KEY')  # Session için secret key
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
+app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')
+app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
+app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
 
 mysql = MySQL(app)
 
@@ -33,13 +35,12 @@ def signup():
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
-        
-        # Şifreyi olduğu gibi alıyoruz (hash'lemiyoruz)
-        plain_password = password  # Şifreyi düz haliyle kaydediyoruz
 
-        # Veritabanına ekle
+        # Şifre hash’leniyor
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
         cursor = mysql.connection.cursor()
-        cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", (username, plain_password, email))
+        cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", (username, hashed_password, email))
         mysql.connection.commit()
         cursor.close()
 
@@ -51,24 +52,46 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username'].strip()  # Boşlukları temizle
-        password = request.form['password'].strip()  # Boşlukları temizle
+        username = request.form['username'].strip()
+        password = request.form['password'].strip()
         
-        # Kullanıcıyı veritabanında ara
         cursor = mysql.connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = %s", [username])
+        cursor.execute("SELECT id, username, password FROM users WHERE username = %s", [username])
         user = cursor.fetchone()
         cursor.close()
-
+        
+        # Debug için
+        print(f"Kullanıcı: {user}")
+        
         if user:
-            # Kullanıcı ve şifreyi kontrol et
-            if user[2] == password:  # Şifreyi olduğu gibi karşılaştırıyoruz
-                return 'Login successful!'
-            else:
-                return 'Invalid credentials'
-        else:
-            return 'Invalid credentials'
-
+            # User[0] = id, User[1] = username, User[2] = password olduğunu doğrulayalım
+            user_id, user_name, hashed_password = user
+            
+            print(f"Şifre kontrolü: {password}, Hash: {hashed_password}")
+            
+            try:
+                # Şifreyi doğrulamayı dene
+                if bcrypt.check_password_hash(hashed_password, password):
+                    # JWT Token oluştur
+                    token = jwt.encode({
+                        'user_id': user_id,
+                        'username': user_name,
+                        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+                    }, app.secret_key, algorithm='HS256')
+                    
+                    return jsonify({'message': 'Giriş başarılı', 'token': token})
+                else:
+                    return jsonify({'message': 'Geçersiz şifre'}), 401
+            except ValueError as e:
+                # Hata detayını kaydet
+                print(f"Şifre doğrulama hatası: {e}, Hash: {hashed_password}")
+                return jsonify({'message': f'Şifre doğrulama hatası: {e}'}), 500
+            except Exception as e:
+                print(f"Beklenmeyen hata: {e}")
+                return jsonify({'message': 'Bir hata oluştu'}), 500
+        
+        return jsonify({'message': 'Kullanıcı bulunamadı'}), 401
+    
     return render_template('login.html')
 
 if __name__ == '__main__':
