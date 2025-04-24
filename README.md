@@ -46,14 +46,7 @@ CREATE TABLE user (
 );
 ```
 ### 6. MongoDB Veritabanını Kurun
-MongoDB’de ecommerce veritabanına örnek ürün verisi ekleyin:
-```javascript
-use ecommerce
-db.products.insertMany([
-    { productId: "prod1", name: "Ürün 1", price: 100, stock: 50 },
-    { productId: "prod2", name: "Ürün 2", price: 50, stock: 100 }
-]);
-```
+
 ### 7. Uygulamayı Çalıştırın
 ```bash
 python app.py
