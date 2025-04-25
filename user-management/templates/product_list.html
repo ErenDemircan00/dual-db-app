@@ -68,28 +68,38 @@
         .cart-button {
             background-color: #FF9800;
         }
+        .logout{
+            background-color: red;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Ürün Listesi</h1>
+        <h1>Hoşgeldiniz {{ session.username}}</h1>
+        <h2>Ürün Listesi</h2>
         <div class="nav-buttons">
+            {% if session.user_type == "supplier" %}
             <a href="{{ url_for('add_product') }}" class="nav-button">Yeni Ürün Ekle</a>
+            {% endif %}
             <a href="{{ url_for('view_cart') }}" class="nav-button cart-button">Sepetim</a>
+            <a href = "{{url_for('logout')}}" class="nav-button logout">Çıkış</a>
         </div>
     </div>
-
-    <div class="products-container">
+    {% if products|length == 0 %}
+        <p>Hiç ürün bulunamadı.</p>
+    {% else %}
+        <div class="products-container">
         {% for product in products %}
-        <div class="product-card">
-            <div class="product-title">{{ product.name }}</div>
-            <div class="product-price">{{ product.price }} TL</div>
-            <div class="product-description">{{ product.description }}</div>
-            <form action="{{ url_for('add_to_cart', product_id=product._id) }}" method="post">
-                <button type="submit" class="add-to-cart">Sepete Ekle</button>
-            </form>
-        </div>
+            <div class="product-card">
+                <div class="product-title">{{ product.name }}</div>
+                <div class="product-price">{{ product.price }} TL</div>
+                <div class="product-description">{{ product.description }}</div>
+                <form action="{{ url_for('add_to_cart', product_id=product._id) }}" method="post">
+                    <button type="submit" class="add-to-cart">Sepete Ekle</button>
+                </form>
+            </div>
         {% endfor %}
     </div>
+    {%endif%}
 </body>
 </html>

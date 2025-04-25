@@ -1,10 +1,16 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response
+from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response,session
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from functools import wraps
+
+from repositories.mysql_repository import MySQLUserRepository
+from repositories.mongo_repository import MongoProductRepository
+from services.auth_service import AuthService
+from services.product_services import ProductService
+
 import os
 import jwt
 import datetime
@@ -31,6 +37,11 @@ client = MongoClient(os.getenv('MONGO_URI'))
 db = client['shop']  # veya os.getenv('MONGO_DB_NAME')
 products_collection = db['products']
 cart_collection = db['cart']  # Sepet için yeni koleksiyon
+
+user_repository = MySQLUserRepository(mysql)
+product_repository = MongoProductRepository(client)
+auth_service = AuthService(user_repository  , bcrypt)
+product_service = ProductService(product_repository)
 
 # Token doğrulama dekoratörü
 def token_required(f):
@@ -76,17 +87,14 @@ def signup():
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
-
+        user_type = request.form['user_type']
         # Şifre hash'leniyor
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
-        cursor = mysql.connection.cursor()
-        cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", 
-                     (username, hashed_password, email))
-        mysql.connection.commit()
-        cursor.close()
-
-        return redirect(url_for('login'))
+        if auth_service.register(username,hashed_password,email, user_type):
+            return redirect(url_for('index'))
+        else:
+            return jsonify({"error": "Kayit basarisiz"}), 500
 
     return render_template('signup.html')
 
@@ -94,52 +102,42 @@ def signup():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = request.form['password'].strip()
-        
-        # API isteği mi, yoksa form isteği mi kontrol et
         is_api = request.headers.get('Content-Type') == 'application/json'
-        
+
         if is_api:
             data = request.get_json()
             username = data.get('username', '').strip()
             password = data.get('password', '').strip()
-
-        cursor = mysql.connection.cursor()
-        cursor.execute("SELECT id, username, password FROM users WHERE username = %s", [username])
-        user = cursor.fetchone()
-        cursor.close()
-
-        if user:
-            user_id, user_name, hashed_password = user
-            if bcrypt.check_password_hash(hashed_password, password):
-                # JWT Token oluştur
-                token = jwt.encode({
-                    'user_id': user_id,
-                    'username': user_name,
-                    'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
-                }, app.secret_key, algorithm='HS256')
-                
-                if is_api:
-                    return jsonify({'message': 'Giriş başarılı', 'token': token})
-                else:
-                    # Web arayüzü için cookie'ye token ekle ve yönlendir
-                    response = make_response(redirect(url_for('list_products')))
-                    response.set_cookie('token', token, httponly=True, max_age=7200)  # 2 saat
-                    return response
-            else:
-                if is_api:
-                    return jsonify({'message': 'Geçersiz şifre'}), 401
-                else:
-                    return render_template('login.html', error='Geçersiz şifre')
-        
-        if is_api:
-            return jsonify({'message': 'Kullanıcı bulunamadı'}), 401
         else:
-            return render_template('login.html', error='Kullanıcı bulunamadı')
-    
-    return render_template('login.html')
+            username = request.form['username'].strip()
+            password = request.form['password'].strip()
 
+        user = auth_service.login(username, password)
+        if user:
+
+            session['user_logged_in'] = True
+            session['username'] = user['username']
+            session['id'] = user['id']
+            session['user_type'] = user['user_type']
+
+            token = jwt.encode({
+                'user_id': user['id'],
+                'username': user['username'],
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+            }, app.secret_key, algorithm='HS256')
+
+            if is_api:
+                return jsonify({'message': 'Giriş başarılı', 'token': token})
+
+            response = make_response(redirect(url_for('list_products')))
+            response.set_cookie('token', token, httponly=True, max_age=7200)
+            return response
+        else:
+            if is_api:
+                return jsonify({'message': 'Kullanıcı adı veya şifre hatalı'}), 401
+            return render_template('login.html', error='Geçersiz kullanıcı adı veya şifre')
+
+    return render_template('login.html')
 # Ürün Ekleme Sayfası
 @app.route('/add-product', methods=['GET', 'POST'])
 @token_required
