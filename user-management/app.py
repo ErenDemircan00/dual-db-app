@@ -229,6 +229,22 @@ def add_to_cart(current_user, product_id):
     
     return redirect(url_for('list_products'))
 
+@app.route("/delete-product/<product_id>", methods=["POST"])
+def delete_product(product_id):
+    if "username" not in session or session.get("user_type") != "supplier":
+        return "Yetkiniz yok!", 403
+
+    # burada ürünü sadece bu kullanıcı eklediyse silsin (opsiyonel güvenlik)
+    product = products_collection.find_one({"_id": ObjectId(product_id)})
+
+    if product["Tedarikçi"] != session["usertype"]:
+        return "Bu ürünü silme yetkiniz yok!", 403
+
+    products_collection.delete_one({"_id": ObjectId(product_id)})
+    return redirect(url_for("product_list"))
+
+
+
 # Sepeti görüntüle
 @app.route('/cart', methods=['GET'])
 @token_required
@@ -265,6 +281,51 @@ def update_cart(current_user, item_id):
         cart_collection.delete_one({'_id': ObjectId(item_id), 'user_id': current_user['id']})
     
     return redirect(url_for('view_cart'))
+
+# Profil görüntüleme ve düzenleme
+@app.route('/profile', methods=['GET', 'POST'])
+@token_required
+def profile(current_user):
+    message = None
+    success = None
+    
+    # Kullanıcının güncel bilgilerini alalım
+    user = user_repository.find_by_id(current_user['id'])
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        
+        success, message = auth_service.update_profile(
+            current_user['id'], 
+            username, 
+            email, 
+            current_password, 
+            new_password
+        )
+        
+        if success and username and username != current_user['username']:
+            # Kullanıcı adı değiştiyse yeni token oluştur
+            token = jwt.encode({
+                'user_id': current_user['id'],
+                'username': username,
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+            }, app.secret_key, algorithm='HS256')
+            
+            # Session bilgilerini güncelle
+            session['username'] = username
+            
+            response = make_response(render_template('profile.html', 
+                                                     user=user_repository.find_by_id(current_user['id']),
+                                                     message=message,
+                                                     success=success))
+            response.set_cookie('token', token, httponly=True, max_age=7200)
+            return response
+    
+    return render_template('profile.html', user=user, message=message, success=success)
+
 
 # Çıkış Yap
 @app.route('/logout')

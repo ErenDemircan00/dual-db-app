@@ -41,7 +41,7 @@
             color: #666;
             margin-bottom: 10px;
         }
-        .add-to-cart {
+        .add-to-cart, .delete-product {
             background-color: #4CAF50;
             color: white;
             border: none;
@@ -49,9 +49,16 @@
             border-radius: 4px;
             cursor: pointer;
             width: 100%;
+            margin-top: 5px;
         }
         .add-to-cart:hover {
             background-color: #45a049;
+        }
+        .delete-product {
+            background-color: #f44336;
+        }
+        .delete-product:hover {
+            background-color: #d32f2f;
         }
         .nav-buttons {
             display: flex;
@@ -82,7 +89,8 @@
             <a href="{{ url_for('add_product') }}" class="nav-button">Yeni Ürün Ekle</a>
             {% endif %}
             <a href="{{ url_for('view_cart') }}" class="nav-button cart-button">Sepetim</a>
-            <a href = "{{url_for('logout')}}" class="nav-button logout">Çıkış</a>
+            <a href="{{ url_for('logout') }}" class="nav-button logout">Çıkış</a>
+            <a href="{{ url_for('profile') }}" class="nav-link">Profil Ayarları</a>
         </div>
     </div>
     {% if products|length == 0 %}
@@ -94,12 +102,19 @@
                 <div class="product-title">{{ product.name }}</div>
                 <div class="product-price">{{ product.price }} TL</div>
                 <div class="product-description">{{ product.description }}</div>
+                
                 <form action="{{ url_for('add_to_cart', product_id=product._id) }}" method="post">
                     <button type="submit" class="add-to-cart">Sepete Ekle</button>
                 </form>
+
+                {% if session.user_type == "supplier" %}
+                <form action="{{ url_for('delete_product', product_id=product._id) }}" method="post" onsubmit="return confirm('Bu ürünü silmek istediğinize emin misiniz?');">
+                    <button type="submit" class="delete-product">Sil</button>
+                </form>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
-    {%endif%}
+    {% endif %}
 </body>
 </html>
