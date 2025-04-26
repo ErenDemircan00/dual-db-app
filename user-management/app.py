@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response,session
+from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response, session
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
 from pymongo import MongoClient
@@ -35,7 +35,7 @@ cart_collection = db['cart']  # Sepet için yeni koleksiyon
 
 user_repository = MySQLUserRepository(mysql)
 product_repository = MongoProductRepository(client)
-auth_service = AuthService(user_repository  , bcrypt,mail)
+auth_service = AuthService(user_repository, bcrypt, mail)
 product_service = ProductService(product_repository)
 
 # Token doğrulama dekoratörü
@@ -94,7 +94,7 @@ def signup():
         # Şifre hash'leniyor
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
-        if auth_service.register(username,hashed_password,email, user_type):
+        if auth_service.register(username, hashed_password, email, user_type):
             return redirect(url_for('index'))
         else:
             return jsonify({"error": "Kayit basarisiz"}), 500
@@ -190,6 +190,29 @@ def api_add_product(current_user):
         'product_id': str(result.inserted_id)
     }), 201
 
+# E-posta gönderme fonksiyonu
+def send_cart_update_email(user_email, action_type, product_name=None):
+    try:
+        subject = 'Sepet Güncellemesi'
+        
+        if action_type == 'add':
+            body = f'"{product_name}" ürünü sepetinize eklendi. Alışverişinizi tamamlamak için sitemizi ziyaret edebilirsiniz.'
+        elif action_type == 'remove':
+            body = f'"{product_name}" ürünü sepetinizden çıkarıldı.'
+        elif action_type == 'update':
+            body = f'"{product_name}" ürününün sepetinizdeki miktarı güncellendi.'
+        else:
+            body = 'Sepetinizde bir değişiklik yapıldı. Lütfen kontrol edin.'
+        
+        msg = Message(subject, recipients=[user_email])
+        msg.body = body
+        mail.send(msg)
+        print(f"E-posta başarıyla gönderildi: {user_email}")
+        return True
+    except Exception as e:
+        print(f"E-posta gönderim hatası: {str(e)}")
+        return False
+
 # Sepete ürün ekleme
 @app.route('/add-to-cart/<product_id>', methods=['POST'])
 @token_required
@@ -221,6 +244,11 @@ def add_to_cart(current_user, product_id):
                 'added_at': datetime.datetime.utcnow()
             }
             cart_collection.insert_one(cart_item)
+        
+        # Kullanıcıya e-posta gönder
+        user = user_repository.find_by_id(current_user['id'])
+        if user and 'email' in user:
+            send_cart_update_email(user['email'], 'add', product['name'])
         
         return redirect(url_for('view_cart'))
     
@@ -258,7 +286,17 @@ def view_cart(current_user):
 @app.route('/remove-from-cart/<item_id>', methods=['POST'])
 @token_required
 def remove_from_cart(current_user, item_id):
+    # Ürün adını bul (e-posta için)
+    cart_item = cart_collection.find_one({'_id': ObjectId(item_id), 'user_id': current_user['id']})
+    product_name = cart_item['name'] if cart_item else "Ürün"
+    
+    # Ürünü sepetten kaldır
     cart_collection.delete_one({'_id': ObjectId(item_id), 'user_id': current_user['id']})
+    
+    # Kullanıcıya e-posta gönder
+    user = user_repository.find_by_id(current_user['id'])
+    if user and 'email' in user:
+        send_cart_update_email(user['email'], 'remove', product_name)
     
     return redirect(url_for('view_cart'))
 
@@ -266,6 +304,10 @@ def remove_from_cart(current_user, item_id):
 @app.route('/update-cart/<item_id>', methods=['POST'])
 @token_required
 def update_cart(current_user, item_id):
+    # Ürün adını bul (e-posta için)
+    cart_item = cart_collection.find_one({'_id': ObjectId(item_id), 'user_id': current_user['id']})
+    product_name = cart_item['name'] if cart_item else "Ürün"
+    
     quantity = int(request.form.get('quantity', 1))
     
     if quantity > 0:
@@ -273,11 +315,22 @@ def update_cart(current_user, item_id):
             {'_id': ObjectId(item_id), 'user_id': current_user['id']},
             {'$set': {'quantity': quantity}}
         )
+        
+        # Kullanıcıya e-posta gönder
+        user = user_repository.find_by_id(current_user['id'])
+        if user and 'email' in user:
+            send_cart_update_email(user['email'], 'update', product_name)
     else:
         # Miktar 0 veya negatifse ürünü sepetten kaldır
         cart_collection.delete_one({'_id': ObjectId(item_id), 'user_id': current_user['id']})
+        
+        # Kullanıcıya e-posta gönder
+        user = user_repository.find_by_id(current_user['id'])
+        if user and 'email' in user:
+            send_cart_update_email(user['email'], 'remove', product_name)
     
     return redirect(url_for('view_cart'))
+
 
 # Profil görüntüleme ve düzenleme
 @app.route('/profile', methods=['GET', 'POST'])
@@ -353,18 +406,23 @@ def reset_password():
     token = request.args.get('token')
     if not token:
         return "Token bulunamadı", 400
+    
     try:
         user_data = jwt.decode(token, app.secret_key, algorithms=['HS256'])
-
+        
         if request.method == "GET":
             return render_template("reset_password.html", token=token)
-        data = request.get_json()
-        if not data or 'new_password' not in data:
-            return jsonify({"message": "Yeni şifre gönderilmedi."}), 400
-        new_password = data['new_password']
-        hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
-        user_repository.update_password(user_data['user_id'], hashed_password)
-        return jsonify({"message": "Şifreniz başarıyla güncellendi."}), 200
+        
+        elif request.method == "POST":
+            data = request.get_json()
+            if not data or 'new_password' not in data:
+                return jsonify({"message": "Yeni şifre gönderilmedi."}), 400
+                
+            new_password = data['new_password']
+            hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+            user_repository.update_password(user_data['user_id'], hashed_password)
+            
+            return jsonify({"message": "Şifreniz başarıyla güncellendi."}), 200
 
     except jwt.ExpiredSignatureError:
         return jsonify({"message": "Bağlantı süresi dolmuş. Lütfen tekrar deneyin."}), 400
