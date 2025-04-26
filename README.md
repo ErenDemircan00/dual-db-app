@@ -31,6 +31,11 @@ MYSQL_PASSWORD=your_mysql_password
 MYSQL_DB=users
 MONGO_URI=mongodb://localhost:27017/ecommerce
 SECRET_KEY=your_secret_key
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587  #TLS port
+MAIL_USERNAME=email adres
+MAIL_PASSWORD=Password #google hesap ayarlarından > Güvenlik > Uygulama şifreleri'dan şifre oluştur
+MAIL_DEFAULT_SENDER=deafult email adress
 ```
 ### 5. MySQL Veritabanını Kurun
 MySQL’de users veritabanını ve user tablosunu oluşturun:
