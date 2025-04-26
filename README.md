@@ -22,7 +22,24 @@ source venv/bin/activate  # Linux/macOS
 ```bash
 pip install -r requirements.txt
 ```
-### 4. Çevresel Değişkenleri Ayarlayın
+### 4. MySQL Veritabanını Kurun
+MySQL’de users veritabanını ve user tablosunu oluşturun:
+```sql
+CREATE DATABASE users;
+USE users;
+CREATE TABLE user (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    user_type ENUM('customer', 'supplier') NOT NULL DEFAULT 'customer'
+);
+```
+### 5. MongoDB Veritabanını Kurun
+```txt
+MongoDB veritabanında products ve cart adında iki collection oluştur
+```
+### 6. Çevresel Değişkenleri Ayarlayın
 Proje kök dizininde .env dosyasını oluşturun:
 ```.env
 MYSQL_HOST=localhost
@@ -37,21 +54,6 @@ MAIL_USERNAME=email adres
 MAIL_PASSWORD=Password #google hesap ayarlarından > Güvenlik > Uygulama şifreleri'dan şifre oluştur
 MAIL_DEFAULT_SENDER=deafult email adress
 ```
-### 5. MySQL Veritabanını Kurun
-MySQL’de users veritabanını ve user tablosunu oluşturun:
-```sql
-CREATE DATABASE users;
-USE users;
-CREATE TABLE user (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    email VARCHAR(100) NOT NULL,
-    user_type ENUM('customer', 'supplier') NOT NULL DEFAULT 'customer'
-);
-```
-### 6. MongoDB Veritabanını Kurun
-
 ### 7. Uygulamayı Çalıştırın
 ```bash
 python app.py
