@@ -5,37 +5,42 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from functools import wraps
-from flask_mail import Mail, Message
 
 from repositories.mysql_repository import MySQLUserRepository
 from repositories.mongo_repository import MongoProductRepository
 from services.auth_service import AuthService
-from services.product_services import ProductService
+from services.product_service import ProductService
 
-import os 
+import os
 import jwt
 import datetime
-from config import Config
 
 # .env dosyasını yükle
 load_dotenv()
 
 app = Flask(__name__, template_folder='templates')
 
-app.config.from_object(Config)
+# Bcrypt ve JWT ayarları
 bcrypt = Bcrypt(app)
+app.secret_key = os.getenv('SECRET_KEY')  # Session ve JWT için
+
+# MySQL bağlantısı için ayar
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
+app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')
+app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
+app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
+
 mysql = MySQL(app)
-mail = Mail(app)
+
 # MongoDB bağlantısı
 client = MongoClient(os.getenv('MONGO_URI'))
 db = client['shop']  # veya os.getenv('MONGO_DB_NAME')
 products_collection = db['products']
 cart_collection = db['cart']  # Sepet için yeni koleksiyon
 
-
 user_repository = MySQLUserRepository(mysql)
-product_repository = MongoProductRepository(client)
-auth_service = AuthService(user_repository  , bcrypt,mail)
+product_repository = MongoProductRepository(mongo)
+auth_service = AuthService(user_repository  , bcrypt)
 product_service = ProductService(product_repository)
 
 # Token doğrulama dekoratörü
@@ -70,14 +75,6 @@ def token_required(f):
     
     return decorated
 
-def create_token(user):
-    return jwt.encode({
-        'user_id': user['id'],
-        'username': user['username'],
-        'user_type': user['user_type'],
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
-    }, app.secret_key, algorithm='HS256')
-    
 # Anasayfa
 @app.route('/')
 def index():
@@ -117,12 +114,18 @@ def login():
 
         user = auth_service.login(username, password)
         if user:
-            
+
+            session['user_logged_in'] = True
             session['username'] = user['username']
+            session['id'] = user['id']
             session['user_type'] = user['user_type']
 
-            token = create_token(user)
-            
+            token = jwt.encode({
+                'user_id': user['id'],
+                'username': user['username'],
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+            }, app.secret_key, algorithm='HS256')
+
             if is_api:
                 return jsonify({'message': 'Giriş başarılı', 'token': token})
 
@@ -135,7 +138,7 @@ def login():
             return render_template('login.html', error='Geçersiz kullanıcı adı veya şifre')
 
     return render_template('login.html')
-
+# Ürün Ekleme Sayfası
 @app.route('/add-product', methods=['GET', 'POST'])
 @token_required
 def add_product(current_user):
@@ -162,7 +165,7 @@ def add_product(current_user):
 @app.route('/products', methods=['GET'])
 @token_required
 def list_products(current_user):
-    products = list(products_collection.find())
+    product_list = product_service.get_all_products()
     return render_template('product_list.html', products=products)
 
 # API Endpoint - Ürün Ekleme
@@ -226,22 +229,6 @@ def add_to_cart(current_user, product_id):
     
     return redirect(url_for('list_products'))
 
-@app.route("/delete-product/<product_id>", methods=["POST"])
-def delete_product(product_id):
-    if "username" not in session or session.get("user_type") != "supplier":
-        return "Yetkiniz yok!", 403
-
-    # burada ürünü sadece bu kullanıcı eklediyse silsin (opsiyonel güvenlik)
-    product = products_collection.find_one({"_id": ObjectId(product_id)})
-
-    if product["Tedarikçi"] != session["usertype"]:
-        return "Bu ürünü silme yetkiniz yok!", 403
-
-    products_collection.delete_one({"_id": ObjectId(product_id)})
-    return redirect(url_for("product_list"))
-
-
-
 # Sepeti görüntüle
 @app.route('/cart', methods=['GET'])
 @token_required
@@ -279,106 +266,6 @@ def update_cart(current_user, item_id):
     
     return redirect(url_for('view_cart'))
 
-# Profil görüntüleme ve düzenleme
-@app.route('/profile', methods=['GET', 'POST'])
-@token_required
-def profile(current_user):
-    message = None
-    success = None
-    
-    # Kullanıcının güncel bilgilerini alalım
-    user = user_repository.find_by_id(current_user['id'])
-    
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        current_password = request.form.get('current_password')
-        new_password = request.form.get('new_password')
-        
-        success, message = auth_service.update_profile(
-            current_user['id'], 
-            username, 
-            email, 
-            current_password, 
-            new_password
-        )
-        
-        if success and username and username != current_user['username']:
-            # Kullanıcı adı değiştiyse yeni token oluştur
-            token = jwt.encode({
-                'user_id': current_user['id'],
-                'username': username,
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
-            }, app.secret_key, algorithm='HS256')
-            
-            # Session bilgilerini güncelle
-            session['username'] = username
-            
-            response = make_response(render_template('profile.html', 
-                                                     user=user_repository.find_by_id(current_user['id']),
-                                                     message=message,
-                                                     success=success))
-            response.set_cookie('token', token, httponly=True, max_age=7200)
-            return response
-    
-    return render_template('profile.html', user=user, message=message, success=success)
-
-
-@app.route("/forget_password", methods=['POST'])
-def forget_password():
-    email = request.form['email']
-    user = user_repository.get_user_mail(email) 
-    
-    if not user:
-        return jsonify({'message': 'Bu e-posta adresine ait kullanici bulunamadı'}), 404
-    
-    reset_token = create_token(user)
-    verify_link = url_for('verify_reset_token', token=reset_token, _external=True)
-    auth_service.send_verification_email(user['email'], verify_link)  
-
-    return jsonify({'message': 'Sifre sifirlama linki e-posta adresinize gonderildi.'})
-
-@app.route("/verify_reset/<token>")
-def verify_reset_token(token):
-    try:
-        jwt.decode(token, app.secret_key, algorithms=['HS256'])
-        return redirect(f"/reset-password?token={token}")
-    except jwt.ExpiredSignatureError:
-        return "Baglantı suresi dolmus. Lütfen tekrar deneyin.", 400
-    except jwt.InvalidTokenError:
-        return "Geçersiz bağlantı.", 400
-    
-@app.route("/reset-password", methods=["GET", "POST"])
-def reset_password():
-    token = request.args.get('token')
-    if not token:
-        return "Token bulunamadı", 400
-    try:
-        user_data = jwt.decode(token, app.secret_key, algorithms=['HS256'])
-
-        if request.method == "GET":
-            return render_template("reset_password.html", token=token)
-        data = request.get_json()
-        if not data or 'new_password' not in data:
-            return jsonify({"message": "Yeni şifre gönderilmedi."}), 400
-        new_password = data['new_password']
-        hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
-        user_repository.update_password(user_data['user_id'], hashed_password)
-        return jsonify({"message": "Şifreniz başarıyla güncellendi."}), 200
-
-    except jwt.ExpiredSignatureError:
-        return jsonify({"message": "Bağlantı süresi dolmuş. Lütfen tekrar deneyin."}), 400
-    except jwt.InvalidTokenError:
-        return jsonify({"message": "Geçersiz bağlantı."}), 400
-    except Exception as e:
-        return jsonify({"message": f"Bir hata oluştu: {str(e)}"}), 500
-
-
-    
-@app.route('/forget_password', methods=['GET'])
-def show_forget_password_form():
-        return render_template('forget_password.html')
-    
 # Çıkış Yap
 @app.route('/logout')
 def logout():
@@ -386,18 +273,5 @@ def logout():
     response.set_cookie('token', '', expires=0)  # Token cookie'sini sil
     return response
 
-
-@app.route('/test-email')
-def test_email():
-    try:
-        msg = Message('Test Email', recipients=['akyolalper88@gmail.com'])
-        msg.body = 'Bu bir test e-postasıdır.'
-        mail.send(msg)
-        return 'E-posta gönderildi!'
-    except Exception as e:
-        return f"E-posta gönderme hatası: {str(e)}"
-    
-    
-    
 if __name__ == '__main__':
     app.run(debug=True)

@@ -12,7 +12,9 @@
     --box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     --transition: all 0.3s ease;
   }
-  
+  #forgot-password-form {
+    display: none;
+  }
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: var(--primary-gradient);

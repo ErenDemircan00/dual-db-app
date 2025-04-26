@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Page</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/login_signup.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/login_signup.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -25,17 +25,22 @@
                 <button type="submit"><i class="fas fa-sign-in-alt"></i> Login</button>
             </form>
         </div>
+
+        <p><a href="{{ url_for('forget_password') }}">Şifremi Unuttum?</a></p>
+
+
+        <form id="forgot-password-form" action="{{ url_for('forget_password') }}" method="POST">
+            <label for="email">E-mail:</label>
+            <input type="email" id="email" name="email" required><br><br>
+            <button type="submit">Şifre Sıfırlama Linki Gönder</button>
+        </form>
+    
         
-        {% if user_logged_in %}
-        <div class="welcome-message">
-            <h2>Welcome, {{ username }}!</h2>
-            <form action="/delete_user" method="POST">
-                <button type="submit" name="delete_user"><i class="fas fa-user-minus"></i> Delete Your Account</button>
-            </form>
-        </div>
-        {% endif %}
+    
+        <script src="{{ url_for('static', filename='js/password_form.js') }}"></script>
+      
         
         <p class="links">Don't have an account? <a href="{{ url_for('signup') }}">Sign up here</a></p>
     </div>
-</body>
-</html>
+
+</head>
