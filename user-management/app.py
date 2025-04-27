@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response, session
+from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response, session,flash
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
 from pymongo import MongoClient
@@ -331,6 +331,50 @@ def update_cart(current_user, item_id):
     
     return redirect(url_for('view_cart'))
 
+@app.route('/checkout', methods=['POST'])
+@token_required
+def checkout(current_user):
+    # Kullanıcının sepetindeki ürünleri bul
+    cart_items = list(cart_collection.find({'user_id': current_user['id']}))
+    
+    if not cart_items:
+        flash('Sepetiniz boş!', 'error')
+        return redirect(url_for('view_cart'))
+
+    # Her bir sepet öğesi için ürün sahibine e-posta gönder
+    for item in cart_items:
+        # Ürünü MongoDB'den bul
+        product = products_collection.find_one({'_id': ObjectId(item['product_id'])})
+        if product and 'user_id' in product:
+            # Ürün sahibinin bilgilerini MySQL'den al
+            owner = user_repository.find_by_id(product['user_id'])
+            if owner and 'email' in owner:
+                try:
+                    msg = Message(
+                        subject='Ürününüz Satıldı!',
+                        recipients=[owner['email']],
+                        body=f"""
+                        Merhaba {owner['username']},
+
+                        '{item['name']}' adlı ürününüz satılmıştır!
+                        Detaylar:
+                        - Ürün: {item['name']}
+                        - Fiyat: {item['price']} TL
+                        - Adet: {item['quantity']}
+                        - Toplam: {item['price'] * item['quantity']} TL
+                        """
+                    )
+                    mail.send(msg)
+                except Exception as e:
+                    flash(f'E-posta gönderim hatası: {str(e)}', 'error')
+                    return redirect(url_for('view_cart'))
+            else:
+                flash(f'Ürün sahibi ({product["created_by"]}) için e-posta adresi bulunamadı.', 'warning')
+
+    # Sepeti temizleme
+    cart_collection.delete_many({'user_id': current_user['id']})
+    flash('Satın alma başarılı! Ürün sahiplerine e-posta gönderildi.', 'success')
+    return redirect(url_for('list_products'))
 
 # Profil görüntüleme ve düzenleme
 @app.route('/profile', methods=['GET', 'POST'])
