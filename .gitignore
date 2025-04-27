@@ -26,3 +26,4 @@ env/
 instance/
 *.db
 *.sqlite3
+user-template/tempCodeRunnerFile.py
