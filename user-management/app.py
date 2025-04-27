@@ -262,11 +262,11 @@ def delete_product(product_id):
     # burada ürünü sadece bu kullanıcı eklediyse silsin (opsiyonel güvenlik)
     product = products_collection.find_one({"_id": ObjectId(product_id)})
 
-    if product["Tedarikçi"] != session["usertype"]:
+    if product["created_by"] != session["username"]:
         return "Bu ürünü silme yetkiniz yok!", 403
 
     products_collection.delete_one({"_id": ObjectId(product_id)})
-    return redirect(url_for("product_list"))
+    return redirect(url_for("list_products"))
 
 
 
