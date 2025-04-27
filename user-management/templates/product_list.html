@@ -4,117 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ürün Listesi</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #ddd;
-        }
-        .products-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-        }
-        .product-card {
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 5px;
-        }
-        .product-title {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .product-price {
-            color: #4CAF50;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .product-description {
-            color: #666;
-            margin-bottom: 10px;
-        }
-        .add-to-cart, .delete-product {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 5px;
-        }
-        .add-to-cart:hover {
-            background-color: #45a049;
-        }
-        .delete-product {
-            background-color: #f44336;
-        }
-        .delete-product:hover {
-            background-color: #d32f2f;
-        }
-        .nav-buttons {
-            display: flex;
-            gap: 10px;
-        }
-        .nav-button {
-            background-color: #2196F3;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            text-decoration: none;
-        }
-        .cart-button {
-            background-color: #FF9800;
-        }
-        .logout{
-            background-color: red;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/products.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-    <div class="header">
-        <h1>Hoşgeldiniz {{ session.username}}</h1>
-        <h2>Ürün Listesi</h2>
-        <div class="nav-buttons">
-            {% if session.user_type == "supplier" %}
-            <a href="{{ url_for('add_product') }}" class="nav-button">Yeni Ürün Ekle</a>
-            {% endif %}
-            <a href="{{ url_for('view_cart') }}" class="nav-button cart-button">Sepetim</a>
-            <a href="{{ url_for('logout') }}" class="nav-button logout">Çıkış</a>
-            <a href="{{ url_for('profile') }}" class="nav-link">Profil Ayarları</a>
-        </div>
-    </div>
-    {% if products|length == 0 %}
-        <p>Hiç ürün bulunamadı.</p>
-    {% else %}
-        <div class="products-container">
-        {% for product in products %}
-            <div class="product-card">
-                <div class="product-title">{{ product.name }}</div>
-                <div class="product-price">{{ product.price }} TL</div>
-                <div class="product-description">{{ product.description }}</div>
-                
-                <form action="{{ url_for('add_to_cart', product_id=product._id) }}" method="post">
-                    <button type="submit" class="add-to-cart">Sepete Ekle</button>
-                </form>
-
+    <div class="container">
+        <div class="header">
+            <h1>Hoşgeldiniz, {{ session.username }}!</h1>
+            <h2>Ürün Listesi</h2>
+            <div class="nav-buttons">
                 {% if session.user_type == "supplier" %}
-                <form action="{{ url_for('delete_product', product_id=product._id) }}" method="post" onsubmit="return confirm('Bu ürünü silmek istediğinize emin misiniz?');">
-                    <button type="submit" class="delete-product">Sil</button>
-                </form>
+                <a href="{{ url_for('add_product') }}" class="nav-button"><i class="fas fa-plus"></i> Yeni Ürün Ekle</a>
                 {% endif %}
+                <a href="{{ url_for('view_cart') }}" class="nav-button cart-button"><i class="fas fa-shopping-cart"></i> Sepetim</a>
+                <a href="{{ url_for('logout') }}" class="nav-button logout"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
+                <a href="{{ url_for('profile') }}" class="nav-link"><i class="fas fa-user-cog"></i> Profil Ayarları</a>
             </div>
-        {% endfor %}
+        </div>
+        {% if products|length == 0 %}
+            <p>Hiç ürün bulunamadı.</p>
+        {% else %}
+            <div class="products-container">
+                {% for product in products %}
+                    <div class="product-card">
+                        <div class="product-title">{{ product.name }}</div>
+                        <div class="product-price">{{ product.price }} TL</div>
+                        <div class="product-description">{{ product.description }}</div>
+                        
+                        <form action="{{ url_for('add_to_cart', product_id=product._id) }}" method="post">
+                            <button type="submit" class="add-to-cart"><i class="fas fa-cart-plus"></i> Sepete Ekle</button>
+                        </form>
+
+                        {% if session.user_type == "supplier" %}
+                        <form action="{{ url_for('delete_product', product_id=product._id) }}" method="post" onsubmit="return confirm('Bu ürünü silmek istediğinize emin misiniz?');">
+                            <button type="submit" class="delete-product"><i class="fas fa-trash"></i> Sil</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
     </div>
-    {% endif %}
 </body>
 </html>
