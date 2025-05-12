@@ -3,18 +3,28 @@ from unittest.mock import patch, MagicMock
 import json
 import datetime
 from bson.objectid import ObjectId
+from flask import Flask
 import jwt
-
-# Uygulama modülünü import etmek için düzeltme yolunu belirtin
+from dotenv import load_dotenv
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from user_management.services.product_services import product_service
+from user_management.services.product_services import product_service
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'user_management')))
+
 
 
 # Ana uygulama dosyasını import edin
 from app import app, bcrypt, auth_service, user_repository, product_repository, products_collection, cart_collection
 
+load_dotenv()  # .env dosyasını yükler
+
+app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY")
+
 class TestApp(unittest.TestCase):
+    
     
     def setUp(self):
         """Her test öncesi çalışacak metod"""
@@ -373,3 +383,4 @@ class TestProductService(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    app.secret_key='benimgizliSecretkeyim'

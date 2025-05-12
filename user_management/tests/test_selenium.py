@@ -8,6 +8,17 @@ from selenium.webdriver.common.keys import Keys
 import time
 import os
 from datetime import datetime
+from selenium.webdriver.support.ui import Select
+
+driver = webdriver.Chrome()
+
+driver.get("http://example.com")
+
+# Select öğesini bul ve bir seçenek seç
+select_element = Select(driver.find_element_by_id("dropdown_id"))
+select_element.select_by_visible_text("Option 1")
+
+
 
 class TestFlaskAppUI(unittest.TestCase):
     """Flask uygulamasının UI testleri için Selenium test sınıfı."""
