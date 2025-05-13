@@ -97,7 +97,7 @@ def signup():
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
         if auth_service.register(username, hashed_password, email, user_type):
-            return redirect(url_for('index'))
+            return redirect(url_for('login'))
         else:
             return jsonify({"error": "Kayit basarisiz"}), 500
 
@@ -164,7 +164,33 @@ def add_product(current_user):
 @app.route('/products', methods=['GET'])
 @token_required
 def list_products(current_user):
-    products = list(products_collection.find())
+    # Filtreleme ve sıralama parametrelerini al
+    search_query = request.args.get('search', '').strip()
+    sort_by = request.args.get('sort', 'price_asc')
+    min_price = request.args.get('min_price', type=float)
+    max_price = request.args.get('max_price', type=float)
+    
+    # Temel sorgu
+    query = {}
+    
+    # Arama filtresi ekle
+    if search_query:
+        query['name'] = {'$regex': search_query, '$options': 'i'}  # case-insensitive arama
+    
+    # Fiyat filtresi ekle
+    if min_price is not None or max_price is not None:
+        price_filter = {}
+        if min_price is not None:
+            price_filter['$gte'] = min_price
+        if max_price is not None:
+            price_filter['$lte'] = max_price
+        if price_filter:
+            query['price'] = price_filter
+    
+    # Sıralama
+    sort_direction = 1 if sort_by == 'price_asc' else -1
+    products = list(products_collection.find(query).sort('price', sort_direction))
+    
     return render_template('product_list.html', products=products)
 
 # API Endpoint - Ürün Ekleme
@@ -501,6 +527,20 @@ def test_email():
     except Exception as e:
         return f"E-posta gönderme hatası: {str(e)}"
     
+    
+@app.route('/admin')
+@token_required
+def admin_dashboard(current_user):
+    if current_user['user_type'] != 'admin':
+        return redirect(url_for('list_products'))
+    
+    # Tüm kullanıcıları getir
+    cursor = mysql.connection.cursor()
+    cursor.execute('SELECT * FROM users')
+    users = cursor.fetchall()
+    cursor.close()
+    
+    return render_template('admin.html', users=users)
     
     
 if __name__ == '__main__':
