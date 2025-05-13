@@ -1,4 +1,5 @@
-from user_management.repositories.mongo_repository import mongo_repository
+from user_management.repositories.mongo_repository import MongoProductRepository
+from flask_pymongo import PyMongo
 
 
 class ProductService:
@@ -7,5 +8,3 @@ class ProductService:
 
     def get_all_products(self):
         return self.product_repository.find_all()
-    
-product_service = ProductService(mongo_repository())

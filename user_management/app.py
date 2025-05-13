@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response, session,flash
+from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response, session, flash
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
 from pymongo import MongoClient
@@ -6,11 +6,13 @@ from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from functools import wraps
 from flask_mail import Mail, Message
+from unittest.mock import patch
 
 from repositories.mysql_repository import MySQLUserRepository
 from repositories.mongo_repository import MongoProductRepository
 from services.auth_service import AuthService
-from services.product_services import ProductService
+#from services.product_services import ProductService
+from utils.email_service import send_cart_update_email
 
 import os 
 import jwt
@@ -36,7 +38,7 @@ cart_collection = db['cart']  # Sepet için yeni koleksiyon
 user_repository = MySQLUserRepository(mysql)
 product_repository = MongoProductRepository(client)
 auth_service = AuthService(user_repository, bcrypt, mail)
-product_service = ProductService(product_repository)
+#product_service = ProductService(product_repository)
 
 # Token doğrulama dekoratörü
 def token_required(f):
@@ -412,9 +414,9 @@ def profile(current_user):
             session['username'] = username
             
             response = make_response(render_template('profile.html', 
-                                                     user=user_repository.find_by_id(current_user['id']),
-                                                     message=message,
-                                                     success=success))
+                                                    user=user_repository.find_by_id(current_user['id']),
+                                                    message=message,
+                                                    success=success))
             response.set_cookie('token', token, httponly=True, max_age=7200)
             return response
     

@@ -1,4 +1,5 @@
 import os
+import mongomock
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
@@ -13,3 +14,8 @@ class Config:
     MYSQL_USER = os.getenv('MYSQL_USER')
     MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
     MYSQL_DB = os.getenv('MYSQL_DB')
+
+class TestingConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    MONGO_CLIENT = mongomock.MongoClient() 
