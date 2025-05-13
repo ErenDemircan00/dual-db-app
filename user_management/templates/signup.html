@@ -29,11 +29,17 @@
                 
                 <div class="form-group">
                     <label for="user_type"><i class="fas fa-users-cog"></i> User Type:</label>
-                    <select id="user_type" name="user_type" required>
-                        <option value="" disabled selected>Select user type</option>
-                        <option value="customer">Müşteri</option>
-                        <option value="supplier">Tedarikçi</option>
-                    </select>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="user_type" value="customer" required> Müşteri
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="user_type" value="supplier" required> Tedarikçi
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="user_type" value="admin" required> Admin
+                        </label>
+                    </div>
                 </div>
                 
                 <button type="submit"><i class="fas fa-user-plus"></i> Kayıt Ol</button>

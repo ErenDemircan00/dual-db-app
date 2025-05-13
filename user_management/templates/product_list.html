@@ -21,6 +21,32 @@
                 <a href="{{ url_for('profile') }}" class="nav-link"><i class="fas fa-user-cog"></i> Profil Ayarları</a>
             </div>
         </div>
+
+        <div class="filter-sort-container">
+            <form action="{{ url_for('list_products') }}" method="GET" class="filter-form">
+                <div class="form-group">
+                    <label for="search">Ürün Ara:</label>
+                    <input type="text" name="search" id="search" placeholder="Ürün adı..." value="{{ request.args.get('search', '') }}">
+                </div>
+                <div class="form-group">
+                    <label for="sort">Sıralama:</label>
+                    <select name="sort" id="sort">
+                        <option value="price_asc" {% if request.args.get('sort') == 'price_asc' %}selected{% endif %}>Fiyat (Artan)</option>
+                        <option value="price_desc" {% if request.args.get('sort') == 'price_desc' %}selected{% endif %}>Fiyat (Azalan)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="min_price">Min Fiyat:</label>
+                    <input type="number" name="min_price" id="min_price" step="0.01" value="{{ request.args.get('min_price', '') }}">
+                </div>
+                <div class="form-group">
+                    <label for="max_price">Max Fiyat:</label>
+                    <input type="number" name="max_price" id="max_price" step="0.01" value="{{ request.args.get('max_price', '') }}">
+                </div>
+                <button type="submit" class="filter-button"><i class="fas fa-filter"></i> Filtrele</button>
+            </form>
+        </div>
+
         {% if products|length == 0 %}
             <p>Hiç ürün bulunamadı.</p>
         {% else %}

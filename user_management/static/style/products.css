@@ -168,6 +168,72 @@ p {
     gap: 20px;
 }
 
+.filter-sort-container {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: var(--border-radius);
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.filter-form .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-form label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.filter-form select,
+.filter-form input[type="number"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 2px solid #e6e6e6;
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    transition: var(--transition);
+}
+
+.filter-form select:focus,
+.filter-form input[type="number"]:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.filter-button {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-button:hover {
+    background: linear-gradient(to right, #3a3f99, #7a7fd1);
+    transform: translateY(-2px);
+}
+
+.filter-button i {
+    font-size: 14px;
+}
+
 .product-card {
     background-color: #f9f9f9;
     border: 2px solid #e6e6e6;
@@ -253,6 +319,18 @@ p {
     }
     .container {
         padding: 25px 20px;
+    }
+    .filter-form {
+        flex-direction: column;
+    }
+    
+    .filter-form .form-group {
+        width: 100%;
+    }
+    
+    .filter-button {
+        width: 100%;
+        justify-content: center;
     }
 }
 

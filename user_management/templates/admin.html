@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Paneli</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Admin Paneli</h1>
+            <div class="nav-buttons">
+                <a href="{{ url_for('list_products') }}" class="nav-button"><i class="fas fa-arrow-left"></i> Ürünlere Dön</a>
+                <a href="{{ url_for('logout') }}" class="nav-button logout"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
+            </div>
+        </div>
+
+        <div class="users-container">
+            <h2>Kullanıcı Listesi</h2>
+            <table id="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Kullanıcı Adı</th>
+                        <th>E-posta</th>
+                        <th>Kullanıcı Tipi</th>
+                        <th>Kayıt Tarihi</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user[0] }}</td>
+                        <td>{{ user[1] }}</td>
+                        <td>{{ user[2] }}</td>
+                        <td>{{ user[4] }}</td>
+                        <td>{{ user[5].strftime('%d.%m.%Y %H:%M') if user[5] else 'Belirtilmemiş' }}</td>
+                        <td>
+                            <form action="{{ url_for('delete_user', user_id=user[0]) }}" method="post" class="inline-form" onsubmit="return confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?');">
+                                <button type="submit" class="delete-btn"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html> 
