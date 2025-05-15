@@ -10,14 +10,15 @@ from selenium.webdriver.common.keys import Keys
 import time
 import os
 from datetime import datetime
+from datetime import timezone
 from selenium.webdriver.support.ui import Select
 import threading
 import sys
 from pathlib import Path
 
 # Flask uygulamasını import et
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from user_management.app import app
+sys.path.append(str(Path(__file__).parent.parent))
+from app import app
 
 class TestFlaskAppUI(unittest.TestCase):
     """Flask uygulamasının UI testleri için Selenium test sınıfı."""
@@ -33,23 +34,28 @@ class TestFlaskAppUI(unittest.TestCase):
         cls.flask_thread.start()
         time.sleep(1)  # Uygulamanın başlaması için bekle
         
-        # WebDriver'ı başlat
-        options = webdriver.ChromeOptions()
-        # Aşağıdaki satırı yoruma alarak testleri görsel olarak izleyebilirsiniz
-        options.add_argument('--headless')  # UI olmadan çalıştırmak için
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        
-        # Driver'ı başlat
-        service = Service(ChromeDriverManager().install())
-        cls.driver = webdriver.Chrome(service=service, options=options)
-        cls.base_url = "http://localhost:5000"  # Uygulamanın URL'si
-        cls.driver.implicitly_wait(10)  # Elementlerin yüklenmesi için implicitly wait
-        
-        # Ekran görüntüleri için klasör
-        cls.screenshot_dir = os.path.join(os.path.dirname(__file__), 'screenshots')
-        os.makedirs(cls.screenshot_dir, exist_ok=True)
-        
+        try:
+            from selenium import webdriver
+            
+            # ChromeDriver kullanarak basit bir test yapalım
+            options = webdriver.ChromeOptions()
+            options.add_argument('--headless')  # UI olmadan çalıştırmak için
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            
+            # ChromeDriver'ı başlat (webdriver-manager kullanmadan)
+            cls.driver = webdriver.Chrome(options=options)
+            cls.base_url = "http://localhost:5000"  # Uygulamanın URL'si
+            cls.driver.implicitly_wait(10)  # Elementlerin yüklenmesi için implicitly wait
+            
+            # Ekran görüntüleri için klasör
+            cls.screenshot_dir = os.path.join(os.path.dirname(__file__), 'screenshots')
+            os.makedirs(cls.screenshot_dir, exist_ok=True)
+        except Exception as e:
+            print(f"WebDriver başlatılamadı: {str(e)}")
+            # Flask thread'i durdur ve çık
+            sys.exit(1)
+    
     @classmethod
     def tearDownClass(cls):
         """Tüm testlerden sonra bir kez çalışır."""
@@ -231,7 +237,7 @@ class TestFlaskAppUI(unittest.TestCase):
         self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
         
         # Login sayfasında kaldığımızı doğrula (yönlendirme olmamalı)
-        time.sleep(1)  # Kısa bir bekleme
+        time.sleep(1)  
         self.assertIn("/login", self.driver.current_url)
         
         # Hata mesajını kontrol et (uygulamanızın hata bildirimi nasılsa ona göre ayarlayın)
