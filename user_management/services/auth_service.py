@@ -1,5 +1,5 @@
 import os
-from models.user import User
+from user_management.models.user import User
 from flask_mail import Message
 
 class AuthService:

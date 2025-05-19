@@ -8,16 +8,16 @@ from functools import wraps
 from flask_mail import Mail, Message
 from unittest.mock import patch
 
-from repositories.mysql_repository import MySQLUserRepository
-from repositories.mongo_repository import MongoProductRepository
-from services.auth_service import AuthService
-#from services.product_services import ProductService
-from utils.email_service import send_cart_update_email
+from user_management.repositories.mysql_repository import MySQLUserRepository
+from user_management.repositories.mongo_repository import MongoProductRepository
+from user_management.services.auth_service import AuthService
+from user_management.services.product_services import ProductService
+from user_management.utils.email_service import send_cart_update_email
 
 import os 
 import jwt
 import datetime
-from config import Config
+from user_management.config import Config
 
 # .env dosyasını yükle
 load_dotenv()
@@ -38,7 +38,7 @@ cart_collection = db['cart']  # Sepet için yeni koleksiyon
 user_repository = MySQLUserRepository(mysql)
 product_repository = MongoProductRepository(client)
 auth_service = AuthService(user_repository, bcrypt, mail)
-#product_service = ProductService(product_repository)
+product_service = ProductService(product_repository)
 
 # Token doğrulama dekoratörü
 def token_required(f):

@@ -1,0 +1,180 @@
+{
+    "info": {
+      "name": "Flask API Test Collection",
+      "description": "A Postman collection to test Flask API endpoints with Newman",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Signup User",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ],
+          "body": {
+            "mode": "urlencoded",
+            "urlencoded": [
+              { "key": "username", "value": "testuser{{timestamp}}", "type": "text" },
+              { "key": "password", "value": "Test@123", "type": "text" },
+              { "key": "email", "value": "testuser{{timestamp}}@example.com", "type": "text" },
+              { "key": "user_type", "value": "customer", "type": "text" }
+            ]
+          },
+          "url": {
+            "raw": "{{baseUrl}}/signup",
+            "host": ["{{baseUrl}}"],
+            "path": ["signup"]
+          }
+        },
+        "response": [],
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status code is 302 for successful signup', function () {",
+                "    pm.response.to.have.status(302);",
+                "});",
+                "pm.test('Redirects to login page', function () {",
+                "    pm.expect(pm.response.headers.get('Location')).to.include('/login');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Login User",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\"username\": \"testuser{{timestamp}}\", \"password\": \"Test@123\"}"
+          },
+          "url": {
+            "raw": "{{baseUrl}}/login",
+            "host": ["{{baseUrl}}"],
+            "path": ["login"]
+          }
+        },
+        "response": [],
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status code is 200 for successful login', function () {",
+                "    pm.response.to.have.status(200);",
+                "});",
+                "pm.test('Response contains token', function () {",
+                "    var jsonData = pm.response.json();",
+                "    pm.expect(jsonData.token).to.be.a('string');",
+                "    pm.environment.set('jwt_token', jsonData.token);",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Add Product",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Authorization",
+              "value": "Bearer {{jwt_token}}"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\"name\": \"Test Product\", \"price\": 29.99, \"description\": \"A test product\"}"
+          },
+          "url": {
+            "raw": "{{baseUrl}}/api/products",
+            "host": ["{{baseUrl}}"],
+            "path": ["api", "products"]
+          }
+        },
+        "response": [],
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status code is 201 for product creation', function () {",
+                "    pm.response.to.have.status(201);",
+                "});",
+                "pm.test('Response contains product_id', function () {",
+                "    var jsonData = pm.response.json();",
+                "    pm.expect(jsonData.product_id).to.be.a('string');",
+                "    pm.environment.set('product_id', jsonData.product_id);",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Add to Cart",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Authorization",
+              "value": "Bearer {{jwt_token}}"
+            }
+          ],
+          "url": {
+            "raw": "{{baseUrl}}/add-to-cart/{{product_id}}",
+            "host": ["{{baseUrl}}"],
+            "path": ["add-to-cart", "{{product_id}}"]
+          }
+        },
+        "response": [],
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status code is 302 for adding to cart', function () {",
+                "    pm.response.to.have.status(302);",
+                "});",
+                "pm.test('Redirects to cart page', function () {",
+                "    pm.expect(pm.response.headers.get('Location')).to.include('/cart');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      }
+    ],
+    "variable": [
+      {
+        "key": "baseUrl",
+        "value": "http://localhost:5000"
+      },
+      {
+        "key": "timestamp",
+        "value": "{{$timestamp}}"
+      }
+    ]
+  }

@@ -7,13 +7,24 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
 import time
 import os
 from datetime import datetime, timezone, UTC
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("selenium_tests.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 class TestFlaskAppUI(unittest.TestCase):
     @classmethod
@@ -21,38 +32,89 @@ class TestFlaskAppUI(unittest.TestCase):
         options = webdriver.ChromeOptions()
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--headless')  # Headless modda çalışması için
+        options.add_argument('--headless')
+        options.add_argument('--window-size=1920,1080')
+        options.add_argument('--disable-gpu') 
+        options.add_argument('--disable-extensions')
         
-        # ChromeDriverManager kullanarak WebDriver'ı oluştur
-        service = Service(ChromeDriverManager().install())
-        cls.driver = webdriver.Chrome(service=service, options=options)
+        try:
+            service = Service(ChromeDriverManager().install())
+            cls.driver = webdriver.Chrome(service=service, options=options)
+            logger.info("WebDriver initialized successfully")
+        except Exception as e:
+            logger.critical(f"Failed to initialize WebDriver: {str(e)}")
+            raise
         
         cls.base_url = "http://localhost:5000"
         cls.driver.implicitly_wait(10)
         
+        # Set up directory for screenshot saving
         cls.screenshot_dir = os.path.join(os.path.dirname(__file__), 'screenshots')
         os.makedirs(cls.screenshot_dir, exist_ok=True)
         
     @classmethod
     def tearDownClass(cls):
-        cls.driver.quit()
+        if hasattr(cls, 'driver'):
+            cls.driver.quit()
+            logger.info("WebDriver basariyla kapandi")
     
     def setUp(self):
         self.driver.get(self.base_url)
         self.driver.delete_all_cookies()
         self.timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+        logger.info(f"Starting test: {self._testMethodName}")
     
     def tearDown(self):
         if hasattr(self, '_outcome') and hasattr(self._outcome, 'result'):
             if self._outcome.result.failures or self._outcome.result.errors:
                 self._take_screenshot(self._testMethodName)
+                logger.error(f"Test failed: {self._testMethodName}")
+            else:
+                logger.info(f"Test passed: {self._testMethodName}")
     
     def _take_screenshot(self, name):
         timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         filename = f"{name}-{timestamp}.png"
         filepath = os.path.join(self.screenshot_dir, filename)
-        self.driver.save_screenshot(filepath)
-        print(f"Screenshot saved: {filepath}")
+        try:
+            self.driver.save_screenshot(filepath)
+            logger.info(f"Screenshot saved: {filepath}")
+        except Exception as e:
+            logger.error(f"Failed to save screenshot: {str(e)}")
+            
+    def _wait_for_element(self, by, value, timeout=20):
+        try:
+            element = WebDriverWait(self.driver, timeout).until(
+                EC.presence_of_element_located((by, value))
+            )
+            return element
+        except TimeoutException:
+            self._take_screenshot(f"element_not_found_{value}")
+            logger.error(f"Element not found: {by}={value}")
+            raise
+    
+    def _wait_for_clickable(self, by, value, timeout=20):
+        try:
+            element = WebDriverWait(self.driver, timeout).until(
+                EC.element_to_be_clickable((by, value))
+            )
+            return element
+        except TimeoutException:
+            self._take_screenshot(f"element_not_clickable_{value}")
+            logger.error(f"Element not clickable: {by}={value}")
+            raise
+    
+    def _safe_click(self, element, retry=3):
+        for attempt in range(retry):
+            try:
+                element.click()
+                return
+            except (ElementClickInterceptedException, TimeoutException) as e:
+                if attempt == retry - 1: 
+                    logger.error(f"Failed to click element after {retry} attempts: {str(e)}")
+                    raise
+                logger.warning(f"Click attempt {attempt+1} failed, retrying...")
+                time.sleep(0.5)
     
     def _register_test_user(self, username=None, password="testpass123", email=None, user_type="customer"):
         if username is None:
@@ -60,13 +122,18 @@ class TestFlaskAppUI(unittest.TestCase):
         if email is None:
             email = f"selenium{self.timestamp}@test.com"
             
+        logger.info(f"Registering test user: {username}, {email}, {user_type}")
         self.driver.get(f"{self.base_url}/signup")
         
         self.driver.find_element(By.NAME, "username").send_keys(username)
         self.driver.find_element(By.NAME, "password").send_keys(password)
         self.driver.find_element(By.NAME, "email").send_keys(email)
-        self.driver.find_element(By.CSS_SELECTOR, f"input[name='user_type'][value='{user_type}']").click()
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        radio_button = self._wait_for_element(
+            By.CSS_SELECTOR, f"input[name='user_type'][value='{user_type}']"
+        )
+        self._safe_click(radio_button)
+        submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
+        self._safe_click(submit_button)
         
         WebDriverWait(self.driver, 10).until(
             lambda driver: "/login" in driver.current_url or "/" == driver.current_url
@@ -79,29 +146,43 @@ class TestFlaskAppUI(unittest.TestCase):
             user_data = self._register_test_user()
             username = user_data["username"]
             
+        logger.info(f"Logging in as: {username}")
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(username)
         self.driver.find_element(By.NAME, "password").send_keys(password)
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
+        self._safe_click(submit_button)
         
         try:
             WebDriverWait(self.driver, 10).until(EC.url_contains("/products"))
+            logger.info(f"Successfully logged in as: {username}")
             return True
         except TimeoutException:
+            logger.error(f"Login failed for user: {username}")
             return False
     
     def _add_test_product(self, name=None, price="199.99", description="This is a product created by Selenium test"):
         if name is None:
             name = f"Selenium Test Product {self.timestamp}"
             
+        logger.info(f"Adding test product: {name}")
         self.driver.get(f"{self.base_url}/add-product")
         self.driver.find_element(By.NAME, "name").send_keys(name)
         self.driver.find_element(By.NAME, "price").send_keys(price)
         self.driver.find_element(By.NAME, "description").send_keys(description)
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
+        self._safe_click(submit_button)
         
         WebDriverWait(self.driver, 10).until(EC.url_contains("/products"))
         return name
+    
+    def _find_product_in_list(self, product_name):
+        """Find a product card in the product list by name."""
+        product_cards = self.driver.find_elements(By.CSS_SELECTOR, ".product-card")
+        for card in product_cards:
+            if product_name in card.text:
+                return card
+        return None
     
     def test_01_homepage_loads(self):
         self.driver.get(self.base_url)
@@ -121,8 +202,12 @@ class TestFlaskAppUI(unittest.TestCase):
         self.driver.find_element(By.NAME, "username").send_keys(username)
         self.driver.find_element(By.NAME, "password").send_keys("testpass123")
         self.driver.find_element(By.NAME, "email").send_keys(email)
-        self.driver.find_element(By.CSS_SELECTOR, "input[name='user_type'][value='customer']").click()
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        radio_button = self._wait_for_element(
+            By.CSS_SELECTOR, "input[name='user_type'][value='customer']"
+        )
+        self._safe_click(radio_button)
+        submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
+        self._safe_click(submit_button)
         
         WebDriverWait(self.driver, 10).until(
             lambda driver: "/login" in driver.current_url or "/" == driver.current_url
@@ -135,7 +220,8 @@ class TestFlaskAppUI(unittest.TestCase):
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(user_data["username"])
         self.driver.find_element(By.NAME, "password").send_keys(user_data["password"])
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
+        self._safe_click(submit_button)
         
         WebDriverWait(self.driver, 10).until(EC.url_contains("/products"))
         self.assertIn("/products", self.driver.current_url)
@@ -144,7 +230,8 @@ class TestFlaskAppUI(unittest.TestCase):
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys("wronguser")
         self.driver.find_element(By.NAME, "password").send_keys("wrongpass")
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
+        self._safe_click(submit_button)
         
         time.sleep(1)
         self.assertIn("/login", self.driver.current_url)
@@ -159,7 +246,8 @@ class TestFlaskAppUI(unittest.TestCase):
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(user_data["username"])
         self.driver.find_element(By.NAME, "password").send_keys(user_data["password"])
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
+        self._safe_click(submit_button)
         
         WebDriverWait(self.driver, 10).until(EC.url_contains("/products"))
         product_name = self._add_test_product()
