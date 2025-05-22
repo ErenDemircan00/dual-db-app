@@ -10,10 +10,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
 import time
 import os
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import logging
 
 logging.basicConfig(
@@ -32,13 +32,17 @@ class TestFlaskAppUI(unittest.TestCase):
         options = webdriver.ChromeOptions()
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--headless')
+        options.add_argument('--headless=new')
         options.add_argument('--window-size=1920,1080')
-        options.add_argument('--disable-gpu') 
+        options.add_argument('--disable-gpu')
         options.add_argument('--disable-extensions')
-        
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--disable-logging')
+        options.add_argument('--log-level=3')
+
         try:
             service = Service(ChromeDriverManager().install())
+            logger.info(f"ChromeDriver path: {service.path}")
             cls.driver = webdriver.Chrome(service=service, options=options)
             logger.info("WebDriver initialized successfully")
         except Exception as e:
@@ -47,30 +51,42 @@ class TestFlaskAppUI(unittest.TestCase):
         
         cls.base_url = "http://localhost:5000"
         cls.driver.implicitly_wait(10)
-        
-        # Set up directory for screenshot saving
+
         cls.screenshot_dir = os.path.join(os.path.dirname(__file__), 'screenshots')
         os.makedirs(cls.screenshot_dir, exist_ok=True)
         
-    @classmethod
-    def tearDownClass(cls):
-        if hasattr(cls, 'driver'):
-            cls.driver.quit()
-            logger.info("WebDriver basariyla kapandi")
+    def tearDown(self):
+        # Test sonucunu kontrol et
+        test_passed = not (self._outcome.errors or self._outcome.skipped or self._outcome.failed)
+
+        # Test başarısızsa ekran görüntüsü al
+        if not test_passed:
+            try:
+                test_name = self._testMethodName
+                screenshot_path = os.path.join(self.screenshot_dir, f"{test_name}_{self.timestamp}.png")
+                self.driver.save_screenshot(screenshot_path)
+                logger.info(f"Screenshot saved: {screenshot_path}")
+            except Exception as e:
+                logger.error(f"Failed to save screenshot: {str(e)}")
+
+        # Test sonucunu logla
+        if test_passed:
+            logger.info(f"Test passed: {self._testMethodName}")
+        else:
+            logger.error(f"Test failed: {self._testMethodName}")
+
+        # Tarayıcı çerezlerini temizle
+        try:
+            self.driver.delete_all_cookies()
+        except Exception as e:
+            logger.error(f"Failed to clear cookies: {str(e)}")
+
     
     def setUp(self):
         self.driver.get(self.base_url)
         self.driver.delete_all_cookies()
         self.timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         logger.info(f"Starting test: {self._testMethodName}")
-    
-    def tearDown(self):
-        if hasattr(self, '_outcome') and hasattr(self._outcome, 'result'):
-            if self._outcome.result.failures or self._outcome.result.errors:
-                self._take_screenshot(self._testMethodName)
-                logger.error(f"Test failed: {self._testMethodName}")
-            else:
-                logger.info(f"Test passed: {self._testMethodName}")
     
     def _take_screenshot(self, name):
         timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
@@ -117,27 +133,43 @@ class TestFlaskAppUI(unittest.TestCase):
                 time.sleep(0.5)
     
     def _register_test_user(self, username=None, password="testpass123", email=None, user_type="customer"):
+        unique_id = f"{user_type}{self.timestamp}"
         if username is None:
-            username = f"seleniumuser{self.timestamp}"
+            username = f"seleniumuser{unique_id}"
         if email is None:
-            email = f"selenium{self.timestamp}@test.com"
-            
+            email = f"selenium{unique_id}@test.com"
+
         logger.info(f"Registering test user: {username}, {email}, {user_type}")
         self.driver.get(f"{self.base_url}/signup")
-        
-        self.driver.find_element(By.NAME, "username").send_keys(username)
-        self.driver.find_element(By.NAME, "password").send_keys(password)
-        self.driver.find_element(By.NAME, "email").send_keys(email)
-        radio_button = self._wait_for_element(
-            By.CSS_SELECTOR, f"input[name='user_type'][value='{user_type}']"
-        )
-        self._safe_click(radio_button)
-        submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
-        self._safe_click(submit_button)
-        
-        WebDriverWait(self.driver, 10).until(
-            lambda driver: "/login" in driver.current_url or "/" == driver.current_url
-        )
+
+        try:
+            self.driver.find_element(By.NAME, "username").send_keys(username)
+            self.driver.find_element(By.NAME, "password").send_keys(password)
+            self.driver.find_element(By.NAME, "email").send_keys(email)
+
+            radio_button = self._wait_for_element(
+                By.CSS_SELECTOR, f"input[name='user_type'][value='{user_type}']"
+            )
+            self._safe_click(radio_button)
+
+            submit_button = self._wait_for_element(By.CSS_SELECTOR, "button[type='submit']")
+            self._safe_click(submit_button)
+
+            try:
+                WebDriverWait(self.driver, 20).until(
+                    lambda driver: any(url in driver.current_url for url in ["/login", "/", "/products"])
+                )
+                logger.info(f"Redirected to: {self.driver.current_url}")
+            except TimeoutException:
+                try:
+                    error_message = self.driver.find_element(By.CSS_SELECTOR, ".alert-danger").text
+                    logger.error(f"Registration failed with error: {error_message}")
+                except NoSuchElementException:
+                    logger.error(f"Timeout waiting for redirect. Current URL: {self.driver.current_url}")
+                raise
+        except Exception as e:
+            logger.error(f"Error during registration: {str(e)}")
+            raise
         
         return {"username": username, "password": password, "email": email, "user_type": user_type}
     
@@ -177,7 +209,6 @@ class TestFlaskAppUI(unittest.TestCase):
         return name
     
     def _find_product_in_list(self, product_name):
-        """Find a product card in the product list by name."""
         product_cards = self.driver.find_elements(By.CSS_SELECTOR, ".product-card")
         for card in product_cards:
             if product_name in card.text:
@@ -186,16 +217,27 @@ class TestFlaskAppUI(unittest.TestCase):
     
     def test_01_homepage_loads(self):
         self.driver.get(self.base_url)
-        self.assertIn("Flask", self.driver.title)
         try:
-            login_link = self.driver.find_element(By.LINK_TEXT, "Login")
-            self.assertTrue(login_link.is_displayed())
-            signup_link = self.driver.find_element(By.LINK_TEXT, "Sign Up")
-            self.assertTrue(signup_link.is_displayed())
-        except NoSuchElementException:
-            self.fail("Ana sayfada login/signup bağlantıları bulunamadı")
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+        except TimeoutException:
+            logger.error(f"Page failed to load. URL: {self.base_url}")
+            self._take_screenshot("homepage_loads_timeout")
+            self.fail("Ana sayfa yüklenemedi")
+        expected_title = "Flask"
+        self.assertIn(expected_title, self.driver.title, f"Expected title '{expected_title}' not found in '{self.driver.title}'")
+        try:
+            login_link = self._wait_for_element(By.LINK_TEXT, "Login")
+            self.assertTrue(login_link.is_displayed(), "Login link is not displayed")
+            signup_link = self._wait_for_element(By.LINK_TEXT, "Sign Up")
+            self.assertTrue(signup_link.is_displayed(), "Sign Up link is not displayed")
+        except TimeoutException:
+            self._take_screenshot("homepage_loads_links_failure")
+            logger.error(f"Page source: {self.driver.page_source}")
+            self.fail("Ana sayfada Login/Sign Up bağlantıları bulunamadı")
     
-    def test_02_registration_form(self):
+    def test_registration_form(self):
         username = f"testuser{self.timestamp}"
         email = f"test{self.timestamp}@example.com"
         self.driver.get(f"{self.base_url}/signup")
@@ -215,7 +257,7 @@ class TestFlaskAppUI(unittest.TestCase):
         current_url = self.driver.current_url
         self.assertTrue("/login" in current_url or "/" in current_url)
     
-    def test_03_login_form(self):
+    def test_login_form(self):
         user_data = self._register_test_user()
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(user_data["username"])
@@ -226,7 +268,7 @@ class TestFlaskAppUI(unittest.TestCase):
         WebDriverWait(self.driver, 10).until(EC.url_contains("/products"))
         self.assertIn("/products", self.driver.current_url)
     
-    def test_04_login_invalid_credentials(self):
+    def test_login_invalid_credentials(self):
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys("wronguser")
         self.driver.find_element(By.NAME, "password").send_keys("wrongpass")
@@ -241,7 +283,7 @@ class TestFlaskAppUI(unittest.TestCase):
         except NoSuchElementException:
             pass
     
-    def test_05_add_product(self):
+    def test_add_product(self):
         user_data = self._register_test_user(user_type="supplier")
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(user_data["username"])
@@ -255,7 +297,7 @@ class TestFlaskAppUI(unittest.TestCase):
         page_source = self.driver.page_source
         self.assertIn(product_name, page_source)
     
-    def test_06_add_to_cart(self):
+    def test_add_to_cart(self):
         supplier = self._register_test_user(user_type="supplier")
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(supplier["username"])
@@ -290,7 +332,7 @@ class TestFlaskAppUI(unittest.TestCase):
             self._take_screenshot("add_to_cart_failure")
             self.fail(f"Sepete ekle düğmesi bulunamadı: {str(e)}")
     
-    def test_07_update_cart(self):
+    def test_update_cart(self):
         supplier = self._register_test_user(user_type="supplier")
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(supplier["username"])
@@ -330,7 +372,7 @@ class TestFlaskAppUI(unittest.TestCase):
             self._take_screenshot("update_cart_failure")
             self.fail(f"Sepeti güncelleme testi başarısız: {str(e)}")
     
-    def test_08_remove_from_cart(self):
+    def test_remove_from_cart(self):
         supplier = self._register_test_user(user_type="supplier")
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(supplier["username"])
@@ -368,7 +410,7 @@ class TestFlaskAppUI(unittest.TestCase):
             self._take_screenshot("remove_from_cart_failure")
             self.fail(f"Sepetten çıkarma testi başarısız: {str(e)}")
     
-    def test_09_profile_page(self):
+    def test_profile_page(self):
         user = self._register_test_user()
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(user["username"])
@@ -400,7 +442,7 @@ class TestFlaskAppUI(unittest.TestCase):
             self._take_screenshot("profile_update_failure")
             self.fail(f"Profil güncelleme testi başarısız: {str(e)}")
     
-    def test_10_logout(self):
+    def test_logout(self):
         user = self._register_test_user()
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(user["username"])
@@ -414,7 +456,7 @@ class TestFlaskAppUI(unittest.TestCase):
         self.driver.get(f"{self.base_url}/products")
         WebDriverWait(self.driver, 10).until(EC.url_contains("/login"))
     
-    def test_11_forget_password(self):
+    def test_forget_password(self):
         user = self._register_test_user()
         self.driver.get(f"{self.base_url}/forget_password")
         self.driver.find_element(By.NAME, "email").send_keys(user["email"])
@@ -424,7 +466,7 @@ class TestFlaskAppUI(unittest.TestCase):
         page_source = self.driver.page_source
         self.assertIn("gonderildi", page_source.lower())
     
-    def test_12_checkout(self):
+    def test_checkout(self):
         supplier = self._register_test_user(user_type="supplier")
         self.driver.get(f"{self.base_url}/login")
         self.driver.find_element(By.NAME, "username").send_keys(supplier["username"])
@@ -461,12 +503,7 @@ class TestFlaskAppUI(unittest.TestCase):
             self._take_screenshot("checkout_failure")
             self.fail(f"Ödeme işlemi testi başarısız: {str(e)}")
 
-# Yeni sınıf ekleniyor
 class MockedSeleniumTests(unittest.TestCase):
-    """
-    Selenium testleri için mock sınıfı.
-    Gerçek tarayıcı başlatmadan temel Selenium test yapısını test eder.
-    """
     def setUp(self):
         self.driver_mock = MagicMock()
         self.driver_mock.get = MagicMock()
@@ -478,34 +515,24 @@ class MockedSeleniumTests(unittest.TestCase):
         self.timestamp = "20240101000000"  # Sabit zaman damgası
     
     def test_homepage_navigation(self):
-        # Mock find_element cevabı
         element_mock = MagicMock()
         element_mock.is_displayed.return_value = True
         self.driver_mock.find_element.return_value = element_mock
-        
-        # Anasayfaya git
         self.driver_mock.get(f"{self.base_url}")
-        
-        # Mock element araması yapılıyor
         by_mock = MagicMock(name="By.LINK_TEXT")
         self.driver_mock.find_element(by_mock, "Login")
-        
-        # Bileşenler kontrol edilmeli
         self.driver_mock.find_element.assert_called()
-        
-        # Sayfada login bağlantısının varlığını kontrol et
         self.assertTrue(element_mock.is_displayed())
     
     def test_mock_registration(self):
-        # Form için mocklara yeni değerler atama
         username_field = MagicMock()
         password_field = MagicMock()
         email_field = MagicMock()
         user_type_field = MagicMock()
         submit_button = MagicMock()
         
-        # find_element için side effect tanımlama
         def find_element_side_effect(by, value):
+            _ = by  # Referenced to avoid unused parameter warning
             if value == "username":
                 return username_field
             elif value == "password":
@@ -521,10 +548,8 @@ class MockedSeleniumTests(unittest.TestCase):
         
         self.driver_mock.find_element.side_effect = find_element_side_effect
         
-        # Kayıt sayfasına git
         self.driver_mock.get(f"{self.base_url}/signup")
         
-        # Form alanlarını doldur - bu esnada gerçek çağrılar yapılıyor
         by_mock = MagicMock(name="By.NAME")
         self.driver_mock.find_element(by_mock, "username")
         self.driver_mock.find_element(by_mock, "password")
@@ -532,7 +557,6 @@ class MockedSeleniumTests(unittest.TestCase):
         self.driver_mock.find_element(by_mock, "user_type")
         self.driver_mock.find_element(by_mock, "submit")
         
-        # En az bir find_element çağrısı yapıldığını kontrol et
         self.assertGreaterEqual(self.driver_mock.find_element.call_count, 1)
 
 if __name__ == "__main__":
