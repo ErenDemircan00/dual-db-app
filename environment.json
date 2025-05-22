@@ -1,0 +1,20 @@
+{
+    "name": "Flask API Environment",
+    "values": [
+      {
+        "key": "baseUrl",
+        "value": "http://localhost:5000",
+        "enabled": true
+      },
+      {
+        "key": "jwt_token",
+        "value": "",
+        "enabled": true
+      },
+      {
+        "key": "product_id",
+        "value": "",
+        "enabled": true
+      }
+    ]
+  }

@@ -17,8 +17,8 @@
                 <a href="{{ url_for('add_product') }}" class="nav-button"><i class="fas fa-plus"></i> Yeni Ürün Ekle</a>
                 {% endif %}
                 <a href="{{ url_for('view_cart') }}" class="nav-button cart-button"><i class="fas fa-shopping-cart"></i> Sepetim</a>
-                <a href="{{ url_for('logout') }}" class="nav-button logout"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
-                <a href="{{ url_for('profile') }}" class="nav-link"><i class="fas fa-user-cog"></i> Profil Ayarları</a>
+                <a href="{{ url_for('logout') }}" id="logout-button"class="nav-button logout"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
+                <a href="{{ url_for('profile') }}" id="profile-btn" class="nav-link"><i class="fas fa-user-cog"></i> Profil Ayarları</a>
             </div>
         </div>
 
