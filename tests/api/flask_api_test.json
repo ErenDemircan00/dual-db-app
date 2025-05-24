@@ -1,180 +1,250 @@
 {
-    "info": {
-      "name": "Flask API Test Collection",
-      "description": "A Postman collection to test Flask API endpoints with Newman",
-      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-    },
-    "item": [
-      {
-        "name": "Signup User",
-        "request": {
-          "method": "POST",
-          "header": [
-            {
-              "key": "Content-Type",
-              "value": "application/x-www-form-urlencoded"
-            }
-          ],
-          "body": {
-            "mode": "urlencoded",
-            "urlencoded": [
-              { "key": "username", "value": "testuser{{timestamp}}", "type": "text" },
-              { "key": "password", "value": "Test@123", "type": "text" },
-              { "key": "email", "value": "testuser{{timestamp}}@example.com", "type": "text" },
-              { "key": "user_type", "value": "customer", "type": "text" }
-            ]
-          },
-          "url": {
-            "raw": "{{baseUrl}}/signup",
-            "host": ["{{baseUrl}}"],
-            "path": ["signup"]
+	"info": {
+		"_postman_id": "d8d1856d-43ed-4df6-9b5e-e1f7752bdb87",
+		"name": "E-Ticaret",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "43121071",
+		"_collection_link": "https://red-crater-174592.postman.co/workspace/Team-Workspace~e3d2a96c-e0f4-402c-8428-18e87118b0be/collection/43121071-d8d1856d-43ed-4df6-9b5e-e1f7752bdb87?action=share&source=collection_link&creator=43121071"
+	},
+	"item": [
+		{
+			"name": "Kullanıcı Kaydı",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "username",
+							"value": "test_postman",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "newpassword123",
+							"type": "text"
+						},
+						{
+							"key": "email",
+							"value": "test_postman@test.com",
+							"type": "text"
+						},
+						{
+							"key": "user_type",
+							"value": "customer",
+							"type": "text"
+						}	
+					]
+				},
+				"url": "http://127.0.1:5000/signup"
+			},
+			"response": [],
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 302 for successful signup', function () {",
+							"    pm.response.to.have.status(302);",
+							"});",
+							"pm.test('Redirects to login page', function () {",
+							"    pm.expect(pm.response.headers.get('Location')).to.include('/login');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			]
+		},
+		{
+			"name": "Login dogru giriş",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"username\": \"test_postman\",\r\n  \"password\": \"newpassword123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://127.0.0.1:5000/login"
+			},
+			"response": []
+		},
+		{
+			"name": "Login yanlış giriş",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"username\": \"test_postman_fail\",\r\n  \"password\": \"password123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://127.0.0.1:5000/login"
+			},
+			"response": []
+		},
+		{
+			"name": "ürün ekleme",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": {
+						"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNSwidXNlcm5hbWUiOiJ5dXN1ZiIsInVzZXJfdHlwZSI6InN1cHBsaWVyIiwiZXhwIjoxNzQ1Nzc3OTMyfQ.q1Auca57xETE7mhxW1nMaElTSusa4h4SghfKXGypq70"
+					}
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Yeni Ürün\",\r\n    \"price\": 200.0,\r\n    \"description\": \"Yeni ürün açıklaması\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://127.0.0.1:5000/add-product"
+			},
+			"response": []
+		},
+		{
+			"name": "Şifre yenilme linki yollama",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "email",
+							"value": "test_postman@test.com",
+							"type": "text"
+						}
+					]
+				},
+				"url": "http://127.0.0.1:5000/forget_password"
+			},
+			"response": []
+		},
+		{
+			"name": "Şifre Yenileme",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"new_password\": \"newpassword123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/reset-password?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozLCJ1c2VybmFtZSI6ImFscGVyIiwidXNlcl90eXBlIjoiY3VzdG9tZXIiLCJleHAiOjE3NDU3Nzg1ODd9.lfe1iOpJUidhfHZZ7oeEcjddV6Din-q5_zYaaky_uwk",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"reset-password"
+					],
+					"query": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozLCJ1c2VybmFtZSI6ImFscGVyIiwidXNlcl90eXBlIjoiY3VzdG9tZXIiLCJleHAiOjE3NDU3Nzg1ODd9.lfe1iOpJUidhfHZZ7oeEcjddV6Din-q5_zYaaky_uwk"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Products",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": {
+						"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNSwidXNlcm5hbWUiOiJ5dXN1ZiIsInVzZXJfdHlwZSI6InN1cHBsaWVyIiwiZXhwIjoxNzQ1Nzc3OTMyfQ.q1Auca57xETE7mhxW1nMaElTSusa4h4SghfKXGypq70"
+					}
+				},
+				"method": "GET",
+				"header": [],
+				"url": "http://127.0.0.1:5000/products"
+			},
+			"response": []
+		},
+    {
+      "name": "Delete Product",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 for successful product deletion', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response confirms deletion', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.include('deleted');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": {
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNSwidXNlcm5hbWUiOiJ5dXN1ZiIsInVzZXJfdHlwZSI6InN1cHBsaWVyIiwiZXhwIjoxNzQ1Nzc3OTMyfQ.q1Auca57xETE7mhxW1nMaElTSusa4h4SghfKXGypq70"
           }
         },
-        "response": [],
-        "event": [
-          {
-            "listen": "test",
-            "script": {
-              "exec": [
-                "pm.test('Status code is 302 for successful signup', function () {",
-                "    pm.response.to.have.status(302);",
-                "});",
-                "pm.test('Redirects to login page', function () {",
-                "    pm.expect(pm.response.headers.get('Location')).to.include('/login');",
-                "});"
-              ],
-              "type": "text/javascript"
-            }
-          }
-        ]
-      },
-      {
-        "name": "Login User",
-        "request": {
-          "method": "POST",
-          "header": [
-            {
-              "key": "Content-Type",
-              "value": "application/json"
-            }
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:5000/delete-product/{{product_id}}",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
           ],
-          "body": {
-            "mode": "raw",
-            "raw": "{\"username\": \"testuser{{timestamp}}\", \"password\": \"Test@123\"}"
-          },
-          "url": {
-            "raw": "{{baseUrl}}/login",
-            "host": ["{{baseUrl}}"],
-            "path": ["login"]
-          }
-        },
-        "response": [],
-        "event": [
-          {
-            "listen": "test",
-            "script": {
-              "exec": [
-                "pm.test('Status code is 200 for successful login', function () {",
-                "    pm.response.to.have.status(200);",
-                "});",
-                "pm.test('Response contains token', function () {",
-                "    var jsonData = pm.response.json();",
-                "    pm.expect(jsonData.token).to.be.a('string');",
-                "    pm.environment.set('jwt_token', jsonData.token);",
-                "});"
-              ],
-              "type": "text/javascript"
-            }
-          }
-        ]
+          "port": "5000",
+          "path": [
+            "delete-product",
+            "{{product_id}}"
+          ]
+        }
       },
-      {
-        "name": "Add Product",
-        "request": {
-          "method": "POST",
-          "header": [
-            {
-              "key": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "key": "Authorization",
-              "value": "Bearer {{jwt_token}}"
-            }
-          ],
-          "body": {
-            "mode": "raw",
-            "raw": "{\"name\": \"Test Product\", \"price\": 29.99, \"description\": \"A test product\"}"
-          },
-          "url": {
-            "raw": "{{baseUrl}}/api/products",
-            "host": ["{{baseUrl}}"],
-            "path": ["api", "products"]
-          }
-        },
-        "response": [],
-        "event": [
-          {
-            "listen": "test",
-            "script": {
-              "exec": [
-                "pm.test('Status code is 201 for product creation', function () {",
-                "    pm.response.to.have.status(201);",
-                "});",
-                "pm.test('Response contains product_id', function () {",
-                "    var jsonData = pm.response.json();",
-                "    pm.expect(jsonData.product_id).to.be.a('string');",
-                "    pm.environment.set('product_id', jsonData.product_id);",
-                "});"
-              ],
-              "type": "text/javascript"
-            }
-          }
-        ]
-      },
-      {
-        "name": "Add to Cart",
-        "request": {
-          "method": "POST",
-          "header": [
-            {
-              "key": "Authorization",
-              "value": "Bearer {{jwt_token}}"
-            }
-          ],
-          "url": {
-            "raw": "{{baseUrl}}/add-to-cart/{{product_id}}",
-            "host": ["{{baseUrl}}"],
-            "path": ["add-to-cart", "{{product_id}}"]
-          }
-        },
-        "response": [],
-        "event": [
-          {
-            "listen": "test",
-            "script": {
-              "exec": [
-                "pm.test('Status code is 302 for adding to cart', function () {",
-                "    pm.response.to.have.status(302);",
-                "});",
-                "pm.test('Redirects to cart page', function () {",
-                "    pm.expect(pm.response.headers.get('Location')).to.include('/cart');",
-                "});"
-              ],
-              "type": "text/javascript"
-            }
-          }
-        ]
-      }
-    ],
-    "variable": [
-      {
-        "key": "baseUrl",
-        "value": "http://localhost:5000"
-      },
-      {
-        "key": "timestamp",
-        "value": "{{$timestamp}}"
-      }
-    ]
-  }
+      "response": []
+    }
+  ]
+}

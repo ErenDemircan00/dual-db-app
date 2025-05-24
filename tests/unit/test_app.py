@@ -4,26 +4,26 @@ from flask import Flask
 from bson.objectid import ObjectId
 import jwt
 import datetime
-import mongomock
 import sys
 import os
 
-# Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from user_management.app import app, create_token
 from user_management.repositories.mongo_repository import MongoProductRepository
+from user_management.services.auth_service import AuthService
+from user_management.utils.email_service import send_cart_update_email
 
 class FlaskAppBasicTests(unittest.TestCase):
     def setUp(self):
         app.config['TESTING'] = True
-        app.config['SECRET_KEY'] = 'test-secret-key'
+        app.config['SECRET_KEY'] = '123'
         self.client = app.test_client()
         self.user = {
             'id': 1,
             'username': 'testuser',
             'password': '$2b$12$testpasswordhash',
-            'email': 'test@example.com',
+            'gmail': 'test@example.com',
             'user_type': 'customer'
         }
         self.product = {
@@ -33,7 +33,7 @@ class FlaskAppBasicTests(unittest.TestCase):
             'description': 'A test product',
             'user_id': 1,
             'created_by': 'testuser',
-            'created_at': datetime.datetime.now(datetime.UTC)
+            'created_at': datetime.datetime.now(datetime.timezone.utc)
         }
         self.token = create_token(self.user)
 
@@ -54,110 +54,151 @@ class FlaskAppBasicTests(unittest.TestCase):
     def test_forget_password_page_loads(self):
         response = self.client.get('/forget_password')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'email', response.data)
-    
+        self.assertIn(b'gmail', response.data)
+        
     def test_create_token(self):
         token = create_token(self.user)
-        self.assertTrue(token)
-        decoded = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        self.assertEqual(decoded['user_id'], self.user['id'])
+        self.assertIsNotNone(token)
+        decoded = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
         self.assertEqual(decoded['username'], self.user['username'])
+        self.assertEqual(decoded['user_type'], self.user['user_type'])
+        self.assertIn('exp', decoded)
 
-class FlaskAppMockTests(unittest.TestCase):
+class TestAuthService(unittest.TestCase):
     def setUp(self):
-        app.config['TESTING'] = True
-        app.config['SECRET_KEY'] = 'test-secret-key'
-        self.client = app.test_client()
-        self.user = {
-            'id': 1,
-            'username': 'testuser',
-            'password': '$2b$12$testpasswordhash',
-            'email': 'test@example.com',
-            'user_type': 'customer'
-        }
-        
-    @patch('user_management.app.auth_service.login')
-    def test_login_with_valid_credentials(self, mock_login):
-        mock_login.return_value = self.user
-        
-        response = self.client.post('/login', data={
-            'username': 'testuser',
-            'password': 'password123'
-        }, follow_redirects=True)
-        
-        self.assertEqual(response.status_code, 200)
-        mock_login.assert_called_once_with('testuser', 'password123')
-        
-    @patch('user_management.app.auth_service.login')
-    def test_login_with_invalid_credentials(self, mock_login):
-        mock_login.return_value = None
-        
-        response = self.client.post('/login', data={
-            'username': 'wronguser',
-            'password': 'wrongpassword'
-        })
-        
-        self.assertEqual(response.status_code, 200)
-        mock_login.assert_called_once_with('wronguser', 'wrongpassword')
+        self.mock_repo = MagicMock()
+        self.mock_bcrypt = MagicMock()
+        self.mock_mail = MagicMock()
+        self.auth_service = AuthService(self.mock_repo, self.mock_bcrypt, self.mock_mail)
 
-class MongoDBTests(unittest.TestCase):
-    def setUp(self):
-        self.mongo_client = mongomock.MongoClient()
-        
-        class MockPyMongo:
-            def __init__(self, mongo_client):
-                self.db = mongo_client['shop']
-                
-        self.mock_pymongo = MockPyMongo(self.mongo_client)
-        self.test_products = [
-            {
-                '_id': ObjectId(),
-                'name': 'Test Product 1',
-                'price': 10.0,
-                'description': 'test product 1',
-                'user_id': 1,
-                'created_by': 'testuser',
-                'created_at': datetime.datetime.now(datetime.UTC)
-            },
-            {
-                '_id': ObjectId(),
-                'name': 'Test Product 2',
-                'price': 20.0,
-                'description': 'A test product 2',
-                'user_id': 2,
-                'created_by': 'anotheruser',
-                'created_at': datetime.datetime.now(datetime.UTC)
-            }
-        ]
-        
-        self.mongo_client['shop']['products'].insert_many(self.test_products)
-        
-        self.product_repo = MongoProductRepository(self.mock_pymongo)
-        
-    def test_find_all_products(self):
-        products = self.product_repo.find_all()
-        self.assertGreaterEqual(len(products), 2)
+    def test_register_success(self):
+        self.mock_repo.save.return_value = True
+        result = self.auth_service.register("user1", "pass1", "user1@gmail.com")
+        self.assertTrue(result)
+        self.mock_repo.save.assert_called_once()
     
-    def test_mongo_insert_and_find(self):
-        new_product = {
-            'name': 'New Product',
-            'price': 30.0,
-            'description': 'news',
-            'user_id': 3,
-            'created_by': 'newuser',
-            'created_at': datetime.datetime.now(datetime.UTC)
-        }
+    def test_login_success(self):
+        self.mock_repo.find_by_username.return_value = {'username': 'user1', 'password': 'hashedpass'}
+        self.mock_bcrypt.check_password_hash.return_value = True
+        user = self.auth_service.login("user1", "pass1")
+        self.assertIsNotNone(user)
+        self.mock_repo.find_by_username.assert_called_once_with("user1")
+        self.mock_bcrypt.check_password_hash.assert_called_once()
+    
+    def test_login_failure_wrong_password(self):
+        self.mock_repo.find_by_username.return_value = {'username': 'user1', 'password': 'hashedpass'}
+        self.mock_bcrypt.check_password_hash.return_value = False
+        user = self.auth_service.login("user1", "wrongpass")
+        self.assertIsNone(user)
+
+    def test_login_failure_no_user(self):
+        self.mock_repo.find_by_username.return_value = None
+        user = self.auth_service.login("no_user", "pass")
+        self.assertIsNone(user)
+
+    def test_update_profile_user_not_found(self):
+        self.mock_repo.find_by_id.return_value = None
+        success, msg = self.auth_service.update_profile(1, username="newuser")
+        self.assertFalse(success)
+        self.assertEqual(msg, "Kullanıcı bulunamadı.")
+
+    def test_update_profile_password_mismatch(self):
+        self.mock_repo.find_by_id.return_value = {'id': 1, 'username': 'olduser', 'password': 'hashedpass', 'email': 'old@gmail.com'}
+        self.mock_bcrypt.check_password_hash.return_value = False
+        success, msg = self.auth_service.update_profile(1, current_password="wrong", new_password="newpass")
+        self.assertFalse(success)
+        self.assertEqual(msg, "Mevcut şifre yanlış.")
+
+    def test_update_profile_username_taken(self):
+        self.mock_repo.find_by_id.return_value = {'id': 1, 'username': 'olduser', 'password': 'hashedpass', 'email': 'old@gmail.com'}
+        self.mock_bcrypt.check_password_hash.return_value = True
+        self.mock_repo.find_by_username.return_value = {'id': 2, 'username': 'newuser'}
+        success, msg = self.auth_service.update_profile(1, username="newuser")
+        self.assertFalse(success)
+        self.assertEqual(msg, "Bu kullanıcı adı zaten kullanılıyor.")
+
+    def test_update_profile_email_taken(self):
+        self.mock_repo.find_by_id.return_value = {'id': 1, 'username': 'olduser', 'password': 'hashedpass', 'email': 'old@gmail.com'}
+        self.mock_bcrypt.check_password_hash.return_value = True
+        self.mock_repo.find_by_username.return_value = None
+        self.mock_repo.find_by_email.return_value = {'id': 3, 'gmail': 'new@gmail.com'}
+        success, msg = self.auth_service.update_profile(1, gmail="new@gmail.com")
+        self.assertFalse(success)
+        self.assertEqual(msg, "Bu e-posta adresi zaten kullanılıyor.")
+
+    def test_update_profile_success(self):
+        self.mock_repo.find_by_id.return_value = {'id': 1, 'username': 'olduser', 'password': 'hashedpass', 'email': 'old@gmail.com'}
+        self.mock_bcrypt.check_password_hash.return_value = True
+        self.mock_repo.find_by_username.return_value = None
+        self.mock_repo.find_by_email.return_value = None
+        self.mock_bcrypt.generate_password_hash.return_value = "hashednewpass"
+        self.mock_repo.update_user.return_value = True
+        success, msg = self.auth_service.update_profile(
+            1,
+            username="newuser",
+            gmail="new@gmail.com",
+            current_password="oldpass",
+            new_password="newpass"
+        )
+        self.assertTrue(success)
+        self.assertEqual(msg, "Profil başarıyla güncellendi.")
+
+    def test_send_verification_email(self):
+        self.auth_service.send_verification_email("test@gmail.com", "link123")
+        self.mock_mail.send.assert_called_once()
         
-        result = self.mongo_client['shop']['products'].insert_one(new_product)
-        self.assertTrue(result.inserted_id)
         
-        found_product = self.mongo_client['shop']['products'].find_one({'_id': result.inserted_id})
-        self.assertEqual(found_product['name'], 'New Product')
-        self.assertEqual(found_product['price'], 30.0)
-        
-        found_by_name = list(self.mongo_client['shop']['products'].find({'name': 'New Product'}))
-        self.assertEqual(len(found_by_name), 1)
-        self.assertEqual(found_by_name[0]['price'], 30.0)
+class TestSendCartUpdateEmail(unittest.TestCase):
+    @patch('builtins.print')
+    def test_send_add_email(self, mock_print):
+        result = send_cart_update_email('test@gmail.com', 'Sepet Güncellemesi', 'Telefon')
+        self.assertTrue(result)
+        mock_print.assert_called_with('E-posta gönderildi: test@gmail.com, Sepet Güncellemesi, "Telefon" ürünü sepetinize eklendi. Alışverişinizi tamamlamak için sitemizi ziyaret edebilirsiniz.')
+
+    @patch('builtins.print')
+    def test_send_remove_email(self, mock_print):
+        result = send_cart_update_email('test@gmail.com', 'remove', 'Kulaklık')
+        self.assertTrue(result)
+        mock_print.assert_called_with('E-posta gönderildi: test@gmail.com, Sepet Güncellemesi, "Kulaklık" ürünü sepetinizden çıkarıldı.')
+
+    @patch('builtins.print')
+    def test_send_update_email(self, mock_print):
+        result = send_cart_update_email('test@gmail.com', 'update')
+        self.assertTrue(result)
+        mock_print.assert_called_with('E-posta gönderildi: test@gmail.com, Sepet Güncellemesi, Sepetinizdeki bir ürün güncellendi.')
+
+    @patch('builtins.print')
+    def test_send_default_email(self, mock_print):
+        result = send_cart_update_email('test@gmail.com', 'unknown')
+        self.assertTrue(result)
+        mock_print.assert_called_with('E-posta gönderildi: test@gmail.com, Sepet Güncellemesi, Sepetiniz güncellendi.')
+
+    @patch('builtins.print', side_effect=Exception("Print error"))
+    def test_send_email_exception(self, mock_print):
+        result = send_cart_update_email('test@gmail.com', 'add', 'Telefon')
+        self.assertFalse(result)
+
+class TestMongoProductRepository(unittest.TestCase):
+    def setUp(self):
+        self.mock_mongo = MagicMock()
+        self.mock_collection = MagicMock()
+        self.mock_mongo.db.products = self.mock_collection
+        self.repo = MongoProductRepository(self.mock_mongo)
+
+    def test_find_all_success(self):
+        self.mock_collection.find.return_value = [
+            {'name': 'Ürün1', 'price': 100},
+            {'name': 'Ürün2', 'price': 200}
+        ]
+        result = self.repo.find_all()
+        self.mock_collection.find.assert_called_once_with({}, {'_id': 0})
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]['name'], 'Ürün1')
+
+    def test_find_all_exception(self):
+        self.mock_collection.find.side_effect = Exception("DB hatası")
+        result = self.repo.find_all()
+        self.assertEqual(result, [])
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main(argv=['first-arg-is-ignored'], exit=False)

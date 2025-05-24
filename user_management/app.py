@@ -6,7 +6,7 @@ from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from functools import wraps
 from flask_mail import Mail, Message
-from unittest.mock import patch
+
 
 from user_management.repositories.mysql_repository import MySQLUserRepository
 from user_management.repositories.mongo_repository import MongoProductRepository
@@ -17,6 +17,8 @@ from user_management.utils.email_service import send_cart_update_email
 import os 
 import jwt
 import datetime
+import sys
+import subprocess
 from user_management.config import Config
 
 # .env dosyasını yükle
@@ -30,9 +32,9 @@ mysql = MySQL(app)
 mail = Mail(app)
 # MongoDB bağlantısı
 client = MongoClient(os.getenv('MONGO_URI'))
-db = client['shop']  # veya os.getenv('MONGO_DB_NAME')
+db = client['shop'] 
 products_collection = db['products']
-cart_collection = db['cart']  # Sepet için yeni koleksiyon
+cart_collection = db['cart']  
 
 
 user_repository = MySQLUserRepository(mysql)
@@ -77,7 +79,7 @@ def create_token(user):
         'user_id': user['id'],
         'username': user['username'],
         'user_type': user['user_type'],
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+        'exp': datetime.datetime.today() + datetime.timedelta(hours=2)
     }, app.secret_key, algorithm='HS256')
     
 # Anasayfa
@@ -548,4 +550,12 @@ def admin_dashboard(current_user):
     
     
 if __name__ == '__main__':
+    print("Testler çalışıyor...")
+    result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/test_app.py"], capture_output=False)
+    
+    if result.returncode != 0:
+        print("Testler başarısız oldu, uygulama başlatılmıyor.")
+        sys.exit(result.returncode)
+    
+    print("Testler başarılı, uygulama başlatılıyor...")
     app.run(debug=True)
