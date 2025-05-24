@@ -14,7 +14,7 @@
             <h2>Ürün Listesi</h2>
             <div class="nav-buttons">
                 {% if session.user_type == "supplier" %}
-                <a href="{{ url_for('add_product') }}" class="nav-button"><i class="fas fa-plus"></i> Yeni Ürün Ekle</a>
+                <a href="{{ url_for('add_product') }}" id="add-product-button" class="nav-button"><i class="fas fa-plus"></i> Yeni Ürün Ekle</a>
                 {% endif %}
                 <a href="{{ url_for('view_cart') }}" class="nav-button cart-button"><i class="fas fa-shopping-cart"></i> Sepetim</a>
                 <a href="{{ url_for('logout') }}" id="logout-button"class="nav-button logout"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
@@ -43,7 +43,7 @@
                     <label for="max_price">Max Fiyat:</label>
                     <input type="number" name="max_price" id="max_price" step="0.01" value="{{ request.args.get('max_price', '') }}">
                 </div>
-                <button type="submit" class="filter-button"><i class="fas fa-filter"></i> Filtrele</button>
+                <button type="submit" id="filter-button" class="filter-button"><i class="fas fa-filter"></i> Filtrele</button>
             </form>
         </div>
 
@@ -61,8 +61,8 @@
                             <button type="submit" class="add-to-cart"><i class="fas fa-cart-plus"></i> Sepete Ekle</button>
                         </form>
 
-                        {% if session.user_type == "supplier" %}
-                        <form action="{{ url_for('delete_product', product_id=product._id) }}" method="post" onsubmit="return confirm('Bu ürünü silmek istediğinize emin misiniz?');">
+                        {% if session.user_type == "supplier" or session.user_type == "admin" %}
+                        <form action="{{ url_for('delete_product', product_id=product._id) }}" method="post"><!-- onsubmit="return confirm('Bu ürünü silmek istediğinize emin misiniz?');" -->
                             <button type="submit" class="delete-product"><i class="fas fa-trash"></i> Sil</button>
                         </form>
                         {% endif %}

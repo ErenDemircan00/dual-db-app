@@ -1,8 +1,0 @@
-import pytest
-
-pytest.main([
-    "ui/test_auth.py",
-    "ui/test_cart.py",
-    "ui/test_profile.py",
-    "ui/test_logout.py"
-])

@@ -1,5 +1,4 @@
 import os
-import time
 import pytest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -37,11 +36,11 @@ def test_signup_success(browser):
 
     browser.get(f"{BASE_URL}/signup")
 
-    browser.find_element(By.NAME, "username").send_keys("testuser_ui")
-    browser.find_element(By.NAME, "email").send_keys("testuser_ui@example.com")
+    browser.find_element(By.NAME, "username").send_keys("testuser_ui_supplier")
+    browser.find_element(By.NAME, "email").send_keys("testuser_ui_supplier@example.com")
     browser.find_element(By.NAME, "password").send_keys("testpass123")
 
-    browser.find_element(By.CSS_SELECTOR, "input[name='user_type'][value='customer']").click()
+    browser.find_element(By.CSS_SELECTOR, "input[name='user_type'][value='supplier']").click()
     browser.find_element(By.TAG_NAME, "button").click()
 
     WebDriverWait(browser, 5).until(
@@ -79,10 +78,10 @@ def test_signup_missing_fields(browser):
 def test_signup_duplicate_email(browser):
     browser.get(f"{BASE_URL}/signup")
 
-    browser.find_element(By.NAME, "username").send_keys("testuser_ui")
-    browser.find_element(By.NAME, "email").send_keys("testuser_ui@example.com")
+    browser.find_element(By.NAME, "username").send_keys("testuser_ui_supplier")
+    browser.find_element(By.NAME, "email").send_keys("testuser_ui_supplier@example.com")
     browser.find_element(By.NAME, "password").send_keys("testpass123")
-    browser.find_element(By.CSS_SELECTOR, "input[name='user_type'][value='customer']").click()
+    browser.find_element(By.CSS_SELECTOR, "input[name='user_type'][value='supplier']").click()
     browser.find_element(By.TAG_NAME, "button").click()
 
     try:
@@ -96,7 +95,7 @@ def test_signup_duplicate_email(browser):
         
 def test_login_success(browser):
     browser.get(f"{BASE_URL}/login")
-    browser.find_element(By.NAME, "username").send_keys("testuser_ui")
+    browser.find_element(By.NAME, "username").send_keys("testuser_ui_supplier")
     browser.find_element(By.NAME, "password").send_keys("testpass123")
     browser.find_element(By.TAG_NAME, "button").click()
     WebDriverWait(browser, 5).until(

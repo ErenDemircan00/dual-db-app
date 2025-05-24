@@ -14,7 +14,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 BASE_URL = "http://localhost:5000"
 
-logger = logging.getLogger("signup_ui_tests")
+logger = logging.getLogger("ui_tests")
 logger.setLevel(logging.INFO)
 
 file_handler = logging.FileHandler("test_ui.log", mode='a', encoding='utf-8')

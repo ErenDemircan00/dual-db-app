@@ -284,17 +284,21 @@ def add_to_cart(current_user, product_id):
 
 @app.route("/delete-product/<product_id>", methods=["POST"])
 def delete_product(product_id):
-    if "username" not in session or session.get("user_type") != "supplier":
-        return "Yetkiniz yok!", 403
-
-    # burada ürünü sadece bu kullanıcı eklediyse silsin (opsiyonel güvenlik)
-    product = products_collection.find_one({"_id": ObjectId(product_id)})
-
-    if product["created_by"] != session["username"]:
-        return "Bu ürünü silme yetkiniz yok!", 403
-
-    products_collection.delete_one({"_id": ObjectId(product_id)})
-    return redirect(url_for("list_products"))
+    if session.get("user_type") == "admin":
+        products_collection.delete_one({"_id": ObjectId(product_id)})
+        return redirect(url_for("list_products"))
+    else:
+        if "username" not in session or session.get("user_type") != "supplier" and session.get("user_type") != "admin":
+            return "Yetkiniz yok!", 403
+    
+        # burada ürünü sadece bu kullanıcı eklediyse silsin (opsiyonel güvenlik)
+        product = products_collection.find_one({"_id": ObjectId(product_id)})
+    
+        if product["created_by"] != session["username"]:
+            return "Bu ürünü silme yetkiniz yok!", 403
+    
+        products_collection.delete_one({"_id": ObjectId(product_id)})
+        return redirect(url_for("list_products"))
 
 
 
