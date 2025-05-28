@@ -29,3 +29,4 @@ instance/
 user-template/tempCodeRunnerFile.py
 *.log
 *.json
+*.txt
