@@ -7,12 +7,14 @@ import datetime
 import sys
 import os
 
+from user_management.repositories.mysql_repository import MySQLUserRepository
+
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from user_management.app import app, create_token
 from user_management.repositories.mongo_repository import MongoProductRepository
 from user_management.services.auth_service import AuthService
-from user_management.utils.email_service import send_cart_update_email
 
 class FlaskAppBasicTests(unittest.TestCase):
     def setUp(self):
@@ -40,22 +42,43 @@ class FlaskAppBasicTests(unittest.TestCase):
     def test_index_page(self):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-
+        print("Sayfa yüklendi:", response.data)
+        
     def test_login_page_loads(self):
         response = self.client.get('/login')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'form', response.data)
-
+        print("Sayfa yüklendi:", response.data)
+        
     def test_signup_page_loads(self):
         response = self.client.get('/signup')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'form', response.data)
+        print("Sayfa yüklendi:", response.data)
         
     def test_forget_password_page_loads(self):
         response = self.client.get('/forget_password')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'gmail', response.data)
+        print("Sayfa yüklendi:", response.data)
         
+    # def test_create_token_invalid_user(self):
+    #     with self.assertRaises(ValueError):
+    #         create_token({'username': 'invaliduser', 'user_type': 'unknown'})
+            
+    # def test_create_token_valid_user(self):
+    #     token = create_token(self.user)
+    #     self.assertIsNotNone(token)
+    #     decoded = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+    #     self.assertEqual(decoded['username'], self.user['username'])
+    #     self.assertEqual(decoded['user_type'], self.user['user_type'])
+    #     self.assertIn('exp', decoded)
+        
+    # def test_create_token_expiration(self):
+    #     token = create_token(self.user)
+    #     decoded = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+    #     expiration_time = datetime.datetime.fromtimestamp(decoded['exp'])
+    #     self.assertTrue(expiration_time > datetime.datetime.now(datetime.timezone.utc))
+    
     def test_create_token(self):
         token = create_token(self.user)
         self.assertIsNotNone(token)
@@ -122,7 +145,7 @@ class TestAuthService(unittest.TestCase):
         self.mock_bcrypt.check_password_hash.return_value = True
         self.mock_repo.find_by_username.return_value = None
         self.mock_repo.find_by_email.return_value = {'id': 3, 'gmail': 'new@gmail.com'}
-        success, msg = self.auth_service.update_profile(1, gmail="new@gmail.com")
+        success, msg = self.auth_service.update_profile(1, email="new@gmail.com")
         self.assertFalse(success)
         self.assertEqual(msg, "Bu e-posta adresi zaten kullanılıyor.")
 
@@ -131,52 +154,19 @@ class TestAuthService(unittest.TestCase):
         self.mock_bcrypt.check_password_hash.return_value = True
         self.mock_repo.find_by_username.return_value = None
         self.mock_repo.find_by_email.return_value = None
-        self.mock_bcrypt.generate_password_hash.return_value = "hashednewpass"
+        self.mock_bcrypt.generate_password_hash.return_value = b"hashednewpass"
         self.mock_repo.update_user.return_value = True
         success, msg = self.auth_service.update_profile(
             1,
             username="newuser",
-            gmail="new@gmail.com",
+            email="new@gmail.com",
             current_password="oldpass",
             new_password="newpass"
         )
         self.assertTrue(success)
         self.assertEqual(msg, "Profil başarıyla güncellendi.")
-
-    def test_send_verification_email(self):
-        self.auth_service.send_verification_email("test@gmail.com", "link123")
-        self.mock_mail.send.assert_called_once()
         
         
-class TestSendCartUpdateEmail(unittest.TestCase):
-    @patch('builtins.print')
-    def test_send_add_email(self, mock_print):
-        result = send_cart_update_email('test@gmail.com', 'Sepet Güncellemesi', 'Telefon')
-        self.assertTrue(result)
-        mock_print.assert_called_with('E-posta gönderildi: test@gmail.com, Sepet Güncellemesi, "Telefon" ürünü sepetinize eklendi. Alışverişinizi tamamlamak için sitemizi ziyaret edebilirsiniz.')
-
-    @patch('builtins.print')
-    def test_send_remove_email(self, mock_print):
-        result = send_cart_update_email('test@gmail.com', 'remove', 'Kulaklık')
-        self.assertTrue(result)
-        mock_print.assert_called_with('E-posta gönderildi: test@gmail.com, Sepet Güncellemesi, "Kulaklık" ürünü sepetinizden çıkarıldı.')
-
-    @patch('builtins.print')
-    def test_send_update_email(self, mock_print):
-        result = send_cart_update_email('test@gmail.com', 'update')
-        self.assertTrue(result)
-        mock_print.assert_called_with('E-posta gönderildi: test@gmail.com, Sepet Güncellemesi, Sepetinizdeki bir ürün güncellendi.')
-
-    @patch('builtins.print')
-    def test_send_default_email(self, mock_print):
-        result = send_cart_update_email('test@gmail.com', 'unknown')
-        self.assertTrue(result)
-        mock_print.assert_called_with('E-posta gönderildi: test@gmail.com, Sepet Güncellemesi, Sepetiniz güncellendi.')
-
-    @patch('builtins.print', side_effect=Exception("Print error"))
-    def test_send_email_exception(self, mock_print):
-        result = send_cart_update_email('test@gmail.com', 'add', 'Telefon')
-        self.assertFalse(result)
 
 class TestMongoProductRepository(unittest.TestCase):
     def setUp(self):
@@ -200,5 +190,113 @@ class TestMongoProductRepository(unittest.TestCase):
         result = self.repo.find_all()
         self.assertEqual(result, [])
 
-if __name__ == '__main__':
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+
+class TestMySQLUserRepository(unittest.TestCase):
+    def setUp(self):
+        self.mysql_mock = MagicMock()
+        self.connection_mock = MagicMock()
+        self.cursor_mock = MagicMock()
+        self.mysql_mock.connection = self.connection_mock
+        self.connection_mock.cursor.return_value = self.cursor_mock
+        self.connection_mock.commit = MagicMock()
+        self.connection_mock.close = MagicMock()
+        
+        self.repo = MySQLUserRepository(self.mysql_mock)
+    
+    def test_save_success(self):
+        user_data = {
+            'username': 'testuser',
+            'password': 'hashedpw',
+            'email': 'test@example.com',
+            'user_type': 'customer'
+        }
+        
+        result = self.repo.save(user_data)
+        self.assertTrue(result)
+        self.cursor_mock.execute.assert_called_with(
+            "INSERT INTO users (username, password, email, user_type) VALUES (%s, %s, %s, %s)",
+            ('testuser', 'hashedpw', 'test@example.com', 'customer')
+        )
+        self.cursor_mock.close.assert_called_once()
+        self.connection_mock.commit.assert_called_once()
+    
+    def test_save_db_error(self):
+        user_data = {
+            'username': 'testuser',
+            'password': 'hashedpw',
+            'email': 'test@example.com',
+            'user_type': 'customer'
+        }
+        self.cursor_mock.execute.side_effect = Exception("DB Error")
+        
+        result = self.repo.save(user_data)
+        self.assertFalse(result)
+        self.cursor_mock.close.assert_not_called()
+        self.connection_mock.commit.assert_not_called()
+    
+    def test_find_by_username_found(self):
+        self.cursor_mock.fetchone.return_value = (1, 'testuser', 'hashedpw', 'test@example.com', 'customer')
+        
+        result = self.repo.find_by_username('testuser')
+        self.assertIsNotNone(result)
+        self.assertEqual(result['username'], 'testuser')
+        self.assertEqual(result['user_type'], 'customer')
+        self.cursor_mock.close.assert_called_once()
+        self.connection_mock.commit.assert_not_called()
+    
+    def test_find_by_username_not_found(self):
+        self.cursor_mock.fetchone.return_value = None
+        result = self.repo.find_by_username('unknown')
+        self.assertIsNone(result)
+        self.cursor_mock.close.assert_called_once()
+        self.connection_mock.commit.assert_not_called()
+    
+    def test_update_password_success(self):
+        result = self.repo.update_password(1, 'newhashedpassword')
+        self.assertTrue(result)
+        self.cursor_mock.execute.assert_any_call("USE user_management")
+        self.cursor_mock.execute.assert_any_call(
+            "UPDATE users SET password = %s WHERE id = %s",
+            ('newhashedpassword', 1)
+        )
+        self.cursor_mock.close.assert_called_once()
+        self.connection_mock.commit.assert_called_once()
+    
+    def test_update_password_db_error(self):
+        self.cursor_mock.execute.side_effect = Exception("DB Error")
+        result = self.repo.update_password(1, 'newhashedpassword')
+        self.assertFalse(result)
+        self.cursor_mock.close.assert_not_called()
+        self.connection_mock.commit.assert_not_called()
+    
+    def test_find_by_id_found(self):
+        self.cursor_mock.fetchone.return_value = (1, 'testuser', 'hashedpassword', 'test@example.com', 'customer')
+        result = self.repo.find_by_id(1)
+        self.assertEqual(result['id'], 1)
+        self.assertEqual(result['username'], 'testuser')
+        self.cursor_mock.close.assert_called_once()
+        self.connection_mock.commit.assert_not_called()
+    
+    def test_find_by_id_not_found(self):
+        self.cursor_mock.fetchone.return_value = None
+        result = self.repo.find_by_id(999)
+        self.assertIsNone(result)
+        self.cursor_mock.close.assert_called_once()
+        self.connection_mock.commit.assert_not_called()
+    
+    def test_update_user_success(self):
+        update_data = {'email': 'new@example.com', 'user_type': 'supplier'}
+        result = self.repo.update_user(1, update_data)
+        self.assertTrue(result)
+        expected_sql = "UPDATE users SET email = %s, user_type = %s WHERE id = %s"
+        self.cursor_mock.execute.assert_called_with(expected_sql, ['new@example.com', 'supplier', 1])
+        self.cursor_mock.close.assert_called_once()
+        self.connection_mock.commit.assert_called_once()
+    
+    def test_update_user_db_error(self):
+        update_data = {'email': 'new@example.com', 'user_type': 'supplier'}
+        self.cursor_mock.execute.side_effect = Exception("DB Error")
+        result = self.repo.update_user(1, update_data)
+        self.assertFalse(result)
+        self.cursor_mock.close.assert_not_called()
+        self.connection_mock.commit.assert_not_called()

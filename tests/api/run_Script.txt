@@ -1,0 +1,1 @@
+newman run tests/api/PostmanTestleri.postman_collection.json -e tests/api/Testenv.postman_environment.json > newman-report.txt

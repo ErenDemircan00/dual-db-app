@@ -1,0 +1,778 @@
+{
+	"info": {
+		"_postman_id": "57fd7022-949b-42b3-8163-85cc3d75a813",
+		"name": "Postman Testleri",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "43121071",
+		"_collection_link": "https://red-crater-174592.postman.co/workspace/Team-Workspace~e3d2a96c-e0f4-402c-8428-18e87118b0be/collection/43121071-57fd7022-949b-42b3-8163-85cc3d75a813?action=share&source=collection_link&creator=43121071"
+	},
+	"item": [
+		{
+			"name": "Customer",
+			"item": [
+				{
+					"name": "Sign up",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set(\"randomUsername\", \"user_\" + Math.floor(Math.random() * 10000));\r",
+									"pm.environment.set(\"randomMail\", \"user_\" + Math.floor(Math.random() * 1000) + \"@mail.com\");\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "{{randomUsername}}",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "hashed",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "{{randomMail}}",
+									"type": "text"
+								},
+								{
+									"key": "user_type",
+									"value": "costomer",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/signup",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"let jsonData = pm.response.json();\r",
+									"if (jsonData.token) {\r",
+									"    pm.environment.set(\"authToken\", jsonData.token);\r",
+									"    console.log(\"Login başarılı, token kaydedildi:\", jsonData.token);\r",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\":\"{{newUsername}}\",\r\n    \"password\":\"{{newPassword}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/login",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add To Cart",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Product added successfully\", function () {\r",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 302]);\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyODEsInVzZXJuYW1lIjoia3VsbGFuaWNpMSIsInVzZXJfdHlwZSI6ImNvc3RvbWVyIiwiZXhwIjoxNzQ4Mzk0NDA0fQ.S4dygiNrRbCISvMFe3p3XjXKN1xZ4KGHPXA4tL-S7BY",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/add-to-cart/680cb8c2f63a34cbec996053",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"add-to-cart",
+								"680cb8c2f63a34cbec996053"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Profile Update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let responseBody = pm.response.text();\r",
+									"\r",
+									"let updatedUsername = pm.environment.get(\"updatedUsername\");\r",
+									"let updatedEmail = pm.environment.get(\"updatedEmail\");\r",
+									"\r",
+									"pm.test(\"Profile update başarılı olmalı (status 200 veya 302)\", function () {\r",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 302]);\r",
+									"});\r",
+									"\r",
+									"console.log(\"Environment'dan alınan yeni kullanıcı adı:\", updatedUsername);\r",
+									"console.log(\"Environment'dan alınan yeni mail adresi:\", updatedEmail);\r",
+									"\r",
+									"try {\r",
+									"    let jsonData = JSON.parse(responseBody);\r",
+									"\r",
+									"    console.log(\"API'den gelen Username:\", jsonData.username);\r",
+									"    console.log(\"API'den gelen Email:\", jsonData.email);\r",
+									"\r",
+									"    pm.test(\"Username doğru mu?\", () => {\r",
+									"        pm.expect(jsonData.username).to.eql(updatedUsername);\r",
+									"    });\r",
+									"\r",
+									"    pm.test(\"Email doğru mu?\", () => {\r",
+									"        pm.expect(jsonData.email).to.eql(updatedEmail);\r",
+									"    });\r",
+									"\r",
+									"} catch (e) {\r",
+									"    console.log(\"JSON parse hatası:\", e);\r",
+									"    console.log(\"Response Body:\", responseBody);\r",
+									"    pm.test(\"Response JSON formatında değil!\", () => {\r",
+									"        pm.expect.fail(\"Response JSON parse edilemedi.\");\r",
+									"    });\r",
+									"}\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set(\"updatedUsername\", \"user_\" + Math.floor(Math.random() * 10000));\r",
+									"pm.environment.set(\"updatedEmail\", \"email_\" + Math.floor(Math.random() * 10000) + \"@mail.com\");\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "",
+								"value": "",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "{{updatedUsername}}",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "{{updatedEmail}}",
+									"type": "text"
+								},
+								{
+									"key": "current_password",
+									"value": "hashed",
+									"type": "text"
+								},
+								{
+									"key": "new_password",
+									"value": "123",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/profile",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Cart",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"packages": {},
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "quantity ",
+									"value": "2",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/update-cart/6836efdf1781cecfb287dc09",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"update-cart",
+								"6836efdf1781cecfb287dc09"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Cart",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": []
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/remove-from-cart/6836efdf1781cecfb287dc09",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"remove-from-cart",
+								"6836efdf1781cecfb287dc09"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Supplier",
+			"item": [
+				{
+					"name": "Signup_Supplier",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set(\"randomUsername\", \"user_\" + Math.floor(Math.random() * 10000));\r",
+									"pm.environment.set(\"randomMail\", \"user_\" + Math.floor(Math.random() * 1000) + \"@mail.com\");\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "{{randomUsername}}",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "hashed",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "{{randomMail}}",
+									"type": "text"
+								},
+								{
+									"key": "user_type",
+									"value": "supplier",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/signup",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login_Supplier",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"let jsonData = pm.response.json();\r",
+									"if (jsonData.token) {\r",
+									"    pm.environment.set(\"authToken\", jsonData.token);\r",
+									"    console.log(\"Login başarılı, token kaydedildi:\", jsonData.token);\r",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\":\"kullanici3\",\r\n    \"password\":\"hashed\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:5000/login",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "5000",
+							"path": [
+								"login"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "kullanici3",
+									"disabled": true
+								},
+								{
+									"key": "password",
+									"value": "hashed",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.environment.set(\"productName\", \"TestProduct_\" + Math.floor(Math.random() * 10000));\r",
+									"pm.environment.set(\"productPrice\", \"19.99\");\r",
+									"pm.environment.set(\"productDescription\", \"Otomatik ürün açıklaması\");"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoyODksInVzZXJuYW1lIjoia3VsbGFuaWNpMyIsInVzZXJfdHlwZSI6InN1cHBsaWVyIiwiZXhwIjoxNzQ4NDQ3MTQ3fQ.NnjkvaOC6FOPNonB6rkMJ96G65tUxgLS4VLvS8YWzkk",
+								"type": "text",
+								"disabled": true
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "name",
+									"value": "{{productName}}",
+									"type": "text"
+								},
+								{
+									"key": "price",
+									"value": "{{productPrice}}",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "{{productDescription}}",
+									"type": "text"
+								},
+								{
+									"key": "user_id",
+									"value": "289",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "created_by",
+									"value": "kullanici3",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "created_at",
+									"value": "{{$timestamp}}",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:5000/add-product",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5000",
+							"path": [
+								"add-product"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJ1c2VyX3R5cGUiOiJzdXBwbGllciIsInVzZXJuYW1lIjoia3VsbGFuaWNpMyJ9.aDbwiQ.1e1fKMbwuInC3LRgzBk3vQ9Xg3A",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:5000/delete-product/6836f51a1781cecfb287dc0b",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5000",
+							"path": [
+								"delete-product",
+								"6836f51a1781cecfb287dc0b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Show Products",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5000/products",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5000",
+							"path": [
+								"products"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

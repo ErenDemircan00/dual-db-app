@@ -116,6 +116,3 @@ class TestMySQLUserRepository(unittest.TestCase):
         self.assertFalse(result)
         self.cursor_mock.close.assert_not_called()
         self.connection_mock.commit.assert_not_called()
-
-if __name__ == '__main__':
-    unittest.main()

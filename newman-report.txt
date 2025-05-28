@@ -1,0 +1,92 @@
+newman
+
+Postman Testleri
+
+□ Customer
+└ Sign up
+  POST http://127.0.0.1:5000/signup [200 OK, 1.96kB, 304ms]
+  √  Status code is 200
+
+└ Login
+  POST http://127.0.0.1:5000/login [401 UNAUTHORIZED, 251B, 236ms]
+  1. Status code is 200
+
+└ Add To Cart
+  POST http://127.0.0.1:5000/add-to-cart/680cb8c2f63a34cbec996053 [200 OK, 1.96kB, 10ms]
+  √  Product added successfully
+
+└ Profile Update
+  POST http://127.0.0.1:5000/profile [200 OK, 1.96kB, 9ms]
+  2⠄ SyntaxError in test-script
+
+└ Update Cart
+  POST http://127.0.0.1:5000/update-cart/6836efdf1781cecfb287dc09 [200 OK, 1.96kB, 6ms]
+  √  Status code is 200
+
+└ Remove Cart
+  POST http://127.0.0.1:5000/remove-from-cart/6836efdf1781cecfb287dc09 [200 OK, 1.96kB, 7ms]
+  √  Status code is 200
+
+□ Supplier
+└ Signup_Supplier
+  POST http://127.0.0.1:5000/signup [200 OK, 1.96kB, 290ms]
+  √  Status code is 200
+
+└ Login_Supplier
+  POST http://127.0.0.1:5000/login [200 OK, 575B, 290ms]
+  √  Status code is 200
+  ┌
+  │ 'Login başarılı, token kaydedildi:', 'eyJhbGciOiJIUzI1
+  │ NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjozMTAsInVzZXJuYW1lI
+  │ joia3VsbGFuaWNpMyIsInVzZXJfdHlwZSI6InN1cHBsaWVyIiwiZXh
+  │ wIjoxNzQ4NDkxNDU0fQ.JOLZauMBjiiQYH0SxFEOi0acwi-3sBmX3E
+  │ pbKUpqNMI'
+  └
+
+└ Add Product
+  POST http://localhost:5000/add-product [200 OK, 41.83kB, 17ms]
+  √  Status code is 200
+
+└ Delete Product
+  POST http://localhost:5000/delete-product/6836f51a1781cecfb287dc0b [403 FORBIDDEN, 207B, 4ms]
+  3. Status code is 200
+
+└ Show Products
+  GET http://localhost:5000/products [200 OK, 41.83kB, 7ms]
+
+┌─────────────────────────┬────────────────────┬───────────────────┐
+│                         │           executed │            failed │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│              iterations │                  1 │                 0 │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│                requests │                 11 │                 0 │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│            test-scripts │                 10 │                 1 │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│      prerequest-scripts │                  6 │                 0 │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│              assertions │                  9 │                 2 │
+├─────────────────────────┴────────────────────┴───────────────────┤
+│ total run duration: 2s                                           │
+├──────────────────────────────────────────────────────────────────┤
+│ total data received: 94.33kB (approx)                            │
+├──────────────────────────────────────────────────────────────────┤
+│ average response time: 107ms [min: 4ms, max: 304ms, s.d.: 131ms] │
+└──────────────────────────────────────────────────────────────────┘
+
+[31m  # [39m[31m failure        [39m[31m detail                                                [39m
+[90m    [39m[90m                [39m[90m                                                       [39m
+ 1.  AssertionError  Status code is 200                                    
+                     expected response to have status code 200 but got 401 
+                     at assertion:0 in test-script                         
+                     inside "Customer / Login"                             
+[90m    [39m[90m                [39m[90m                                                       [39m
+ 2.  SyntaxError                                                           
+                     Identifier 'responseBody' has already been declared   
+                     at test-script                                        
+                     inside "Customer / Profile Update"                    
+[90m    [39m[90m                [39m[90m                                                       [39m
+ 3.  AssertionError  Status code is 200                                    
+                     expected response to have status code 200 but got 403 
+                     at assertion:0 in test-script                         
+                     inside "Supplier / Delete Product"                    

@@ -6,7 +6,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import logging
 from datetime import datetime
-from db_utils import cleanup_test_users
 
 BASE_URL = "http://localhost:5000"
 

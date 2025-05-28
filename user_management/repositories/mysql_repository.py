@@ -154,3 +154,14 @@ class MySQLUserRepository(BaseRepository):
         except Exception as e:
             print(f"Kullanıcı güncelleme hatası: {str(e)}")
             return False
+    def delete_user(self, user_id):
+        try:
+            cursor = self.mysql.connection.cursor()
+            cursor.execute("USE user_management")
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            self.mysql.connection.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            print(f"Kullanıcı silme hatası: {str(e)}")
+            return False

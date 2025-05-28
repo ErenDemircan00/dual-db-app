@@ -24,7 +24,7 @@
                     </div>
                     <div class="cart-item-controls">
                         <form action="{{ url_for('update_cart', item_id=item._id) }}" method="post" class="quantity-control">
-                            <input type="number" name="quantity" value="{{ item.quantity }}" min="1" class="quantity-input">
+                            <input type="number" name="quantity" id="quantity" value="{{ item.quantity }}" min="1" class="quantity-input">
                             <button type="submit" class="update-btn"><i class="fas fa-sync-alt"></i> Güncelle</button>
                         </form>
                         <form action="{{ url_for('remove_from_cart', item_id=item._id) }}" method="post">

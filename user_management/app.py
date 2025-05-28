@@ -42,6 +42,29 @@ product_repository = MongoProductRepository(client)
 auth_service = AuthService(user_repository, bcrypt, mail)
 product_service = ProductService(product_repository)
 
+def send_cart_update_email(user_email, action_type, product_name=None):
+    try:
+        subject = 'Sepet Güncellemesi'
+        
+        if action_type == 'add':
+            body = f'"{product_name}" ürünü sepetinize eklendi. Alışverişinizi tamamlamak için sitemizi ziyaret edebilirsiniz.'
+        elif action_type == 'remove':
+            body = f'"{product_name}" ürünü sepetinizden çıkarıldı.'
+        elif action_type == 'update':
+            body = f'"{product_name}" ürününün sepetinizdeki miktarı güncellendi.'
+        else:
+            body = 'Sepetinizde bir değişiklik yapıldı. Lütfen kontrol edin.'
+        
+        msg = Message(subject, recipients=[user_email])
+        msg.body = body
+        mail.send(msg)
+        print(f"E-posta başarıyla gönderildi: {user_email}")
+        return True
+    except Exception as e:
+        print(f"E-posta gönderim hatası: {str(e)}")
+        return False
+    
+
 # Token doğrulama dekoratörü
 def token_required(f):
     @wraps(f)
@@ -144,7 +167,7 @@ def login():
 @token_required
 def add_product(current_user):
     if request.method == 'POST':
-        name = request.form['name']
+        name = request.form['name'] 
         price = float(request.form['price'])
         description = request.form['description']
         
@@ -220,28 +243,7 @@ def api_add_product(current_user):
         'product_id': str(result.inserted_id)
     }), 201
 
-# E-posta gönderme fonksiyonu
-def send_cart_update_email(user_email, action_type, product_name=None):
-    try:
-        subject = 'Sepet Güncellemesi'
-        
-        if action_type == 'add':
-            body = f'"{product_name}" ürünü sepetinize eklendi. Alışverişinizi tamamlamak için sitemizi ziyaret edebilirsiniz.'
-        elif action_type == 'remove':
-            body = f'"{product_name}" ürünü sepetinizden çıkarıldı.'
-        elif action_type == 'update':
-            body = f'"{product_name}" ürününün sepetinizdeki miktarı güncellendi.'
-        else:
-            body = 'Sepetinizde bir değişiklik yapıldı. Lütfen kontrol edin.'
-        
-        msg = Message(subject, recipients=[user_email])
-        msg.body = body
-        mail.send(msg)
-        print(f"E-posta başarıyla gönderildi: {user_email}")
-        return True
-    except Exception as e:
-        print(f"E-posta gönderim hatası: {str(e)}")
-        return False
+
 
 # Sepete ürün ekleme
 @app.route('/add-to-cart/<product_id>', methods=['POST'])
@@ -290,7 +292,7 @@ def delete_product(product_id):
         products_collection.delete_one({"_id": ObjectId(product_id)})
         return redirect(url_for("list_products"))
     else:
-        if "username" not in session or session.get("user_type") != "supplier" and session.get("user_type") != "admin":
+        if "username" not in session or session.get("user_type") not in ["supplier", "admin"]:
             return "Yetkiniz yok!", 403
     
         # burada ürünü sadece bu kullanıcı eklediyse silsin (opsiyonel güvenlik)
@@ -302,7 +304,10 @@ def delete_product(product_id):
         products_collection.delete_one({"_id": ObjectId(product_id)})
         return redirect(url_for("list_products"))
 
-
+@app.route("/delete-profile", methods=["POST"])
+@token_required
+def delete_profile(current_user):
+    return user_repository.deleteUser()
 
 # Sepeti görüntüle
 @app.route('/cart', methods=['GET'])
@@ -446,9 +451,9 @@ def profile(current_user):
             session['username'] = username
             
             response = make_response(render_template('profile.html', 
-                                                    user=user_repository.find_by_id(current_user['id']),
-                                                    message=message,
-                                                    success=success))
+                user=user_repository.find_by_id(current_user['id']),
+                message=message,
+                success=success))
             response.set_cookie('token', token, httponly=True, max_age=7200)
             return response
     
@@ -550,8 +555,9 @@ def admin_dashboard(current_user):
     
     
 if __name__ == '__main__':
+    
     print("Testler çalışıyor...")
-    result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/test_app.py"], capture_output=False)
+    result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/test_app.py"], capture_output=False) 
     
     if result.returncode != 0:
         print("Testler başarısız oldu, uygulama başlatılmıyor.")

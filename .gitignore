@@ -28,3 +28,4 @@ instance/
 *.sqlite3
 user-template/tempCodeRunnerFile.py
 *.log
+*.json

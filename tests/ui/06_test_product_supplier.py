@@ -7,9 +7,6 @@ from selenium.webdriver.support import expected_conditions as EC
 import logging
 from datetime import datetime
 import time
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 BASE_URL = "http://localhost:5000"
 
@@ -143,7 +140,6 @@ def test_supplier_can_remove_self_product(browser):
         remove_button.click()
         logger.info("Ürün silme butonuna tıklandı.")
         
-        g
         WebDriverWait(browser, 5).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
